@@ -10,25 +10,29 @@
 source $HOME/.bash_profile
 source ../../refs/.env
 
+# print cellranger version
+cellranger -V
+
 # change directory to your desired output folder
 cd $PROJECT_DIR/counts
+echo "Project directory: $PROJECT_DIR"
 
-# get cellranger version
-cellranger -V
+# print fastq directory
+echo "FASTQ directory: $FASTQ_DIR"
 
 # print sample variable passed from 03_sample_loop.sh script
 SAMPLE=$1
-echo "sample: $SAMPLE"
+echo "Sample: $SAMPLE"
 
 # run cellranger
 cellranger count \
 	--id=$SAMPLE \
+	--create-bam=false \
 	--sample=$SAMPLE \
-	--fastqs=$FASTQ_DIR/$SAMPLE \
-	--transcriptome=$ANNOTATION_REFS/refdata-gex-GRCm39-2024-A \
-	--localcores=$SLURM_NTASKS \
-	--localmem=$(($SLURM_MEM_PER_NODE / 1024)) \
-	--create-bam=false
+	--fastqs=$FASTQ_DIR \
+	--transcriptome="${ANNOTATION_REFS}/refdata-gex-GRCm39-2024-A" \
+	--localcores=$SLURM_NTASKS
+	--localmem=$(($SLURM_MEM_PER_NODE / 1024))
 
 # key:
 # --id, output folder named after the sample

@@ -31,7 +31,7 @@ cellranger count \
 	--sample=$SAMPLE \
 	--fastqs=$FASTQ_DIR \
 	--transcriptome="${ANNOTATION_REFS}/refdata-gex-GRCm39-2024-A" \
-	--localcores=$SLURM_NTASKS
+	--localcores=$SLURM_NTASKS \
 	--localmem=$(($SLURM_MEM_PER_NODE / 1024))
 
 # key:

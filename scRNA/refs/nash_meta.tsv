@@ -32,7 +32,7 @@ young_fe_95	young	Female	ecoli	18	11/12/24	Brain	ATGCGAATGG	CGACACTTGT	SI-TT-D10
 old_fs_155	old	Female	saline	18	11/12/24	Brain	TCCGGGACAA	TGGCATTCAC	SI-TT-E11	10x Chromium Dual Index Kit TT Set A PN1000215
 old_fs_160	old	Female	saline	18	11/12/24	Brain	TTCACACCTT	GTGTACACTA	SI-TT-F11	10x Chromium Dual Index Kit TT Set A PN1000215
 old_fs_164	old	Female	saline	18	11/12/24	Brain	GATAACCTGC	GTTTCTAATG	SI-TT-G11	10x Chromium Dual Index Kit TT Set A PN1000215
-old_fe180	old	Female	ecoli	18	11/12/24	Brain	ACAATCGATC	CATTCCGTCA	SI-TT-H11	10x Chromium Dual Index Kit TT Set A PN1000215
+old_fe_180	old	Female	ecoli	18	11/12/24	Brain	ACAATCGATC	CATTCCGTCA	SI-TT-H11	10x Chromium Dual Index Kit TT Set A PN1000215
 old_fe_183	old	Female	ecoli	18	11/12/24	Brain	CACCGCACCA	ATTGACAGTC	SI-TT-A12	10x Chromium Dual Index Kit TT Set A PN1000215
 old_fe_187	old	Female	ecoli	18	11/12/24	Brain	CGTCAAGGGC	GAGTGACCTA	SI-TT-B12	10x Chromium Dual Index Kit TT Set A PN1000215
 young_ms_13	young	Male	saline	18	11/13/24	Brain	TCGTCAAGAT	CCTGAGTTGC	SI-TT-C12	10x Chromium Dual Index Kit TT Set A PN1000215

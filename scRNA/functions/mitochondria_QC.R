@@ -45,7 +45,7 @@ mitochondria_QC <- function(obj, outDir = NULL, mitoCol = NULL, sampleCol = "sam
   obj <- RunPCA(obj)
   
   # set percent.mt column name if named alternatively
-  mito_column <- "percent.mt"
+  mito_column <- "percent_mt"
   if(!is.null(mitoCol)) {mito_column <- mitoCol}
   
   # set quartile values

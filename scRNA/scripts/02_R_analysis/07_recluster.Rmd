@@ -1,0 +1,1315 @@
+---
+title: "PBMC RRP"
+subtitle: "Processing"
+author: "Kennedi Todd"
+date: "11/03/2024"
+output:
+  html_document:
+    code_folding: hide
+    theme: cerulean
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: inline
+---
+# Setup
+## Notes
+- DCs represent a small percentage of PBMCs \
+- Flow cytometry to enrich for pan-DCs using Lin1- HLA-DR+ cells \
+  - HLA-DR - Human Leukocyte Antigen DR isotype, MHC class II cell surface receptor, 
+usually found in APCs like macrophages, DCs, and B-cells \
+  - Negative for Lineage1 (Lin1): CD3, CD14, CD16, CD19, CD20, CD56
+- PBMCs and enriched DCs were mixed in a 1:1 ratio and sent for sequencing \
+- plasmacytoid DCs (cDCs) are CD123 (aka IL3RA) \
+
+## Set working directory
+```{r working_directory}
+knitr::opts_knit$set(root.dir = ".")
+```
+
+## Load libraries
+```{r libraries, message=FALSE, warnings=FALSE}
+# load libraries
+library(Azimuth)     # RunAzimuth()
+library(cowplot)     # plot_grid()
+library(dplyr)       # left_join()
+library(ggplot2)     # ggplot()
+library(gridExtra)   # grid.arrange()
+library(parallel)    # detectCores()
+library(rtracklayer) # import()
+library(scCustomize) # Merge_Seurat_List()
+library(Seurat)      # Read10X_h5()
+library(stringr)     # str_match()
+```
+
+## Variables and functions
+```{r set_variables_and_thresholds}
+# user variables
+out <- "../../results/Library6/"
+sample <- "Library6"
+
+# thresholds
+nCount.min <- 1000
+nCount.max <- 10000
+nFeature.min <- 250
+complexity.cutoff <- 0.8
+mt.cutoff <- 10
+hb.cutoff <- 1
+
+# single cell functions
+files <- list.files("../../functions", full.names = TRUE)
+invisible(lapply(files, source))
+```
+
+# Load data
+## Annotation
+- Annotation file was downloaded from Fluent's website \
+  + pipseeker-gex-reference-GRCh38-2022.04 \
+- Gm* genes are originally annotated by MGI and the *Rik genes are annotated by RIKEN \
+```{r read_annotation}
+# read in annotation file if not already saved .rds object
+if (file.exists("../../rObjects/annotation.rds")) {
+  genes <- readRDS("../../rObjects/annotation.rds")
+} else {
+  file <- "../../refs/pipseeker-gex-reference-GRCh38-2022.04/geneInfo.tab"
+  genes <- read.delim2(file, sep = "\t", skip = 1, header = FALSE)
+  colnames(genes) <- c("gene_id","gene_name","gene_biotype")
+  saveRDS(genes, "../../rObjects/annotation.rds")
+}
+```
+
+## Metadata
+```{r metadata}
+meta <- read.delim2("../../refs/metadata.tsv")
+meta$sample <- paste(meta$donor, meta$sex, meta$age, sep = ".")
+meta <- meta[meta$library_id %in% sample,]
+```
+
+## Counts
+```{r read_counts, warning=FALSE}
+if (file.exists(paste0("../../rObjects/raw_", tolower(sample), "_seurat_obj.rds"))) {
+  human <- readRDS(paste0("../../rObjects/raw_seurat_obj.rds"))
+} else {
+  # path info
+  prefix <- "../../counts/"
+  suffix <- "/filtered_matrix/sensitivity_3/"
+  
+  # read counts matrix
+  human <- ReadMtx(mtx = paste0(prefix, sample, suffix, "matrix.mtx.gz"),
+                   cells = paste0(prefix, sample, suffix, "barcodes.tsv.gz"),
+                   features = paste0(prefix, sample, suffix, "features.tsv.gz"),
+                   feature.column = 1)
+  
+  # gene_id to gene_name
+  table(rownames(human) %in% genes$gene_id)
+  rownames(genes) <- genes$gene_id
+  genes <- genes[rownames(human),]
+  all.equal(rownames(human), genes$gene_id)
+  rownames(human) <- make.unique(genes$gene_name)
+  barcodes <- colnames(human)
+  
+  # create seurat obj
+  human <- CreateSeuratObject(counts = human)
+  human$library_id <- sample
+
+  # Add meta
+  meta2 <- left_join(x = human@meta.data, y = meta, by = "library_id")
+  rownames(meta2) <- barcodes
+  human@meta.data <- meta2
+  
+  # save
+  saveRDS(human, paste0("../../rObjects/raw_", tolower(sample), "_seurat_obj.rds"))
+  
+  # cleanup
+  remove(meta,meta2,barcodes)
+  gc()
+}
+
+# preview
+human
+```
+
+## Add columns
+```{r add_metadata_columns}
+# cell.complexity
+human$cell.complexity <- log10(human$nFeature_RNA) / log10(human$nCount_RNA)
+
+# percent.mt
+gene.names <- genes[genes$gene_biotype == "protein_coding",]
+gene.names <- gene.names$gene_name
+mt.genes <- gene.names[grep("^MT-", gene.names)]
+human$percent.mt <- PercentageFeatureSet(human, features = mt.genes)
+mt.genes
+
+# percent.ribo
+# ribosomal proteins begin with 'Rps' or 'Rpl' in this annotation file
+# mitochondrial ribosomes start with 'Mrps' or 'Mrpl'
+ribo <- gene.names[grep("^RP[SL]", gene.names)]
+mt.ribo <- gene.names[grep("^MRP[SL]", gene.names)]
+ribo.combined <- c(mt.ribo,ribo)
+ribo.combined <- ribo.combined[ribo.combined %in% rownames(human)]
+human$percent.ribo.protein <- PercentageFeatureSet(human, features = ribo.combined)
+ribo.combined
+
+# percent.hb
+hb.genes <- c("HBA1","HBA2","HBB")
+human$percent.hb <- PercentageFeatureSet(human, features = hb.genes)
+hb.genes
+```
+
+# Pre-filtering QC
+## Number of cells
+```{r prefiltering_cells_per_sample}
+# Visualize the number of cell counts per sample
+data <- as.data.frame(table(human$sample))
+colnames(data) <- c("sample","frequency")
+
+ncells1 <- ggplot(data, aes(x = sample, y = frequency, fill = sample)) + 
+  geom_col() +
+  theme_bw() +
+  geom_text(aes(label = frequency), 
+            position=position_dodge(width=0.9), 
+            vjust=-0.25) +
+  #scale_fill_manual(values = sample_colors) + 
+  scale_y_continuous(breaks = seq(0,80000, by = 10000), limits = c(0,80000)) +
+  ggtitle("Raw: cells per sample") +
+  theme(legend.position =  "none") + 
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+ncells1
+```
+
+## Density plots
+```{r prefiltering_density, warning=FALSE}
+# Visualize nCount_RNA
+den1 <- ggplot(human@meta.data,
+       aes(color = sample,
+           x = nCount_RNA,
+           fill = sample)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  #scale_color_manual(values = sample_colors) +
+  #scale_fill_manual(values = sample_colors) +
+  xlab("nCount_RNA") +
+  ylab("Density") +
+  theme(legend.position =  "none") +
+  geom_vline(xintercept = nCount.min, lty = "dashed") +
+  geom_vline(xintercept = nCount.max, lty = "dashed") +
+  theme(legend.key.size = unit(0.25, 'cm'), legend.title = element_text(size=9))
+
+# Visualize nFeature_RNA
+den2 <- ggplot(human@meta.data,
+       aes(color = sample,
+           x = nFeature_RNA,
+           fill = sample)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  #scale_color_manual(values = sample_colors) +
+  theme(legend.position =  "none") +
+  #scale_fill_manual(values = sample_colors) +
+  xlab("nFeature_RNA") +
+  ylab("Density") +
+  geom_vline(xintercept = nFeature.min, lty = "dashed") +
+  theme(legend.key.size = unit(0.25, 'cm'), legend.title = element_text(size=9))
+
+# Visualize cell complexity
+# Quality cells are usually above 0.85
+den3 <- ggplot(human@meta.data,
+       aes(color = sample,
+           x = cell.complexity,
+           fill = sample)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  #scale_color_manual(values = sample_colors) +
+  theme(legend.position =  "none") +
+  #scale_fill_manual(values = sample_colors) +
+  xlab("Cell Complexity (log10(nFeature/nCount))") +
+  ylab("Density") +
+  geom_vline(xintercept = complexity.cutoff, lty = "dashed") +
+  theme(legend.key.size = unit(0.25, 'cm'), legend.title = element_text(size=9))
+
+# Visualize percent.mt
+den4 <- ggplot(human@meta.data,
+       aes(color = sample,
+           x = percent.mt,
+           fill = sample)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_continuous(n.breaks = 4) +
+  geom_vline(xintercept = mt.cutoff, lty = "dashed") +
+  #scale_color_manual(values = sample_colors) +
+  theme(legend.position =  "none") +
+  #scale_fill_manual(values = sample_colors) +
+  xlab("% Mitochondrial Genes") +
+  ylab("Density") +
+  theme(legend.key.size = unit(0.25, 'cm'), legend.title = element_text(size=9))
+
+# Visualize percent.ribo.protein
+den5 <- ggplot(human@meta.data,
+       aes(color = sample,
+           x = percent.ribo.protein,
+           fill = sample)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  #scale_color_manual(values = sample_colors) +
+  theme(legend.position =  "none") +
+  #scale_fill_manual(values = sample_colors) +
+  xlab("% Ribosomal Protein Genes") +
+  ylab("Density") +
+  theme(legend.key.size = unit(0.25, 'cm'), legend.title = element_text(size=9))
+
+# Visualize percent.hb
+den6 <- ggplot(human@meta.data,
+       aes(color = sample,
+           x = percent.hb,
+           fill = sample)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  geom_vline(xintercept = hb.cutoff, lty = "dashed") +
+  #scale_color_manual(values = sample_colors) +
+  theme(legend.position =  "none") +
+  #scale_fill_manual(values = sample_colors) +
+  xlab("% Hemoglobin Genes") +
+  ylab("Density") +
+  geom_vline(xintercept = hb.cutoff, lty = "dashed") +
+  theme(legend.key.size = unit(0.25, 'cm'), legend.title = element_text(size=9))
+
+# Arrange graphs in grid
+plots <- list(den1,den2,den3,den4,den5,den6)
+layout <- rbind(c(1,4),c(2,5),c(3,6))
+grid <- grid.arrange(grobs = plots, layout_matrix = layout)
+```
+
+```{r save_prefiltering_density,echo=FALSE,eval=FALSE}
+# save
+path <- paste0(out, "filtering_QC/density_curves_raw.pdf")
+pdf(path, width = 8, height = 8)
+grid <- grid.arrange(grobs = plots, layout_matrix = layout)
+dev.off()
+
+# cleanup
+remove(den1,den2,den3,den4,den5,den6,layout,grid,plots)
+```
+
+## Violin plots
+```{r prefiltering_violins, warning=FALSE}
+# nFeature, nCount, and cell.complexity violins
+v1 <- VlnPlot(human,
+              features = c("nFeature_RNA", "nCount_RNA","cell.complexity"),
+              ncol = 3,
+              group.by = 'sample',
+              #cols = sample_colors,
+              pt.size = 0)
+v1
+
+#  percent violins
+v2 <- VlnPlot(human,
+              features = c("percent.mt","percent.ribo.protein","percent.hb"),
+              ncol = 3,
+              group.by = 'sample',
+              #cols = sample_colors,
+              pt.size = 0)
+v2
+```
+
+```{r save_prefiltering_violins, echo=FALSE, eval=FALSE}
+# save v1
+path <- paste0(out, "filtering_QC/violins_nFeature_nCount_complexity_raw.pdf")
+pdf(path, width = 15, height = 4)
+v1
+dev.off()
+
+# save v2
+path <- paste0(out, "filtering_QC/violins_percent_raw.pdf")
+pdf(path, width = 15, height = 4)
+v2
+dev.off()
+
+# cleanup
+remove(v1,v2)
+```
+
+## Scatter plots
+```{r prefiltering_scatter, warning=FALSE}
+s1 <- ggplot(
+  human@meta.data,
+  aes(x = nCount_RNA, y = nFeature_RNA, color = percent.mt)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") +
+	scale_x_log10() +   	
+  scale_y_log10() + 
+  theme_classic() +
+  geom_vline(xintercept = nCount.min, lty = "dashed") + 
+  geom_hline(yintercept = nFeature.min, lty = "dashed") + 
+  facet_wrap(~sample) +
+  scale_colour_gradient(low = "gray90", high = "black", limits =c(0,100))
+s1
+
+s2 <- FeatureScatter(human,
+                     feature1 = "nCount_RNA",
+                     feature2 = "percent.mt",
+                     group.by = 'sample',
+                     #cols = sample_colors,
+                     shuffle = TRUE)
+s2
+
+s3 <- ggplot(
+  human@meta.data,
+  aes(x = nCount_RNA, y = nFeature_RNA, color = percent.hb)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") +
+	scale_x_log10() +   	
+  scale_y_log10() + 
+  theme_classic() +
+  geom_vline(xintercept = nCount.min, lty = "dashed") + 
+  geom_hline(yintercept = nFeature.min, lty = "dashed") + 
+  facet_wrap(~sample) +
+  scale_colour_gradient(low = "gray90", high = "black", limits =c(0,100))
+s3
+```
+
+```{r save_prefiltering_scatter, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
+# save s1
+path <- paste0(out, "filtering_QC/scatter_nFeature_vs_nCount_raw.pdf")
+pdf(path, width = 12, height = 12)
+s1
+dev.off()
+
+# save s2
+path <- paste0(out, "filtering_QC/scatter_percentMT_vs_nCount_raw.pdf")
+pdf(path, width = 6, height = 6)
+s2
+dev.off()
+
+# save s3
+path <- paste0(out, "filtering_QC/scatter_nFeature_vs_nCount_raw2.pdf")
+pdf(path, width = 12, height = 12)
+s3
+dev.off()
+
+# cleanup
+remove(s1,s2,s3)
+```
+
+# Filtering
+## Cell-level filtering
+```{r cell_filtering}
+# filter
+human.filtered <- subset(human,
+                        subset = (nCount_RNA > nCount.min) &
+                          (nCount_RNA < nCount.max) &
+                          (nFeature_RNA > nFeature.min) &
+                          (cell.complexity > complexity.cutoff) &
+                          (percent.mt < mt.cutoff) &
+                          (percent.hb < hb.cutoff))
+
+# print cells removed
+print(paste0(dim(human)[2] - dim(human.filtered)[2]," cells removed"))
+```
+
+## Gene-level filtering
+Remove lowly expressed genes.  We will keep genes that have at least 1 count in 10 cells.
+```{r gene_filtering, warning=FALSE, message=FALSE}
+# filter genes
+human.filtered <- JoinLayers(human.filtered)
+counts <- GetAssayData(object = human.filtered, layer = "counts")
+nonzero <- counts > 0  # produces logical
+keep <- Matrix::rowSums(nonzero) >= 10  # sum the true/false
+counts.filtered <- counts[keep,]  # keep certain genes
+
+# overwrite human.filtered
+human.filtered <- CreateSeuratObject(counts.filtered, 
+                                     meta.data = human.filtered@meta.data)
+
+# print features removed
+print(paste0(dim(counts)[1] - dim(counts.filtered)[1], " features removed"))
+```
+
+
+```{r remove_specific_genes}
+# remove mt.genes
+counts <- GetAssayData(object = human.filtered, layer = "counts")
+keep <- !rownames(counts) %in% mt.genes # false when mt.gene
+counts.filtered <- counts[keep,]
+
+# overwrite human.filtered
+human.filtered <- CreateSeuratObject(counts.filtered,
+                                     meta.data = human.filtered@meta.data)
+
+# print features removed
+print(paste0(dim(counts)[1] - dim(counts.filtered)[1], " features removed"))
+
+# cleanup data
+remove(human,counts,counts.filtered,nonzero)
+```
+
+# Post-filtering QC
+## Number of cells
+```{r postfiltering_cells_per_sample}
+# Visualize the number of cell counts per sample
+data <- as.data.frame(table(human.filtered$sample))
+colnames(data) <- c("sample","frequency")
+
+ncells2 <- ggplot(data, aes(x = sample, y = frequency, fill = sample)) + 
+  geom_col() +
+  theme_bw() +
+  geom_text(aes(label = frequency), 
+            position=position_dodge(width=0.9), 
+            vjust=-0.25) +
+  #scale_fill_manual(values = sample_colors) + 
+  scale_y_continuous(breaks = seq(0,80000, by = 10000), limits = c(0,80000)) +
+  ggtitle("Filtered: cells per sample") +
+  theme(legend.position =  "none") + 
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+
+# Arrange graphs in grid
+plots <- list(ncells1,ncells2)
+layout <- rbind(c(1),c(2))
+grid <- grid.arrange(grobs = plots, layout_matrix = layout)
+```
+
+```{r save_cells_per_sample,echo=FALSE,eval=FALSE}
+# save
+path <- paste0(out, "filtering_QC/cells_per_sample_before_and_after_filtering.pdf")
+pdf(path, width = 12, height = 8)
+grid <- grid.arrange(grobs = plots, layout_matrix = layout)
+dev.off()
+
+# cleanup
+remove(ncells1,ncells2,plots,layout,grid,data)
+```
+
+## Density plots
+```{r postfiltering_density, warning=FALSE}
+# Visualize nCount_RNA
+den1 <- ggplot(human.filtered@meta.data,
+       aes(color = sample,
+           x = nCount_RNA,
+           fill = sample)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  #scale_color_manual(values = sample_colors) +
+  #scale_fill_manual(values = sample_colors) +
+  xlab("nCount_RNA") +
+  ylab("Density") +
+  theme(legend.position =  "none") +
+  geom_vline(xintercept = nCount.min, lty = "dashed") +
+  geom_vline(xintercept = nCount.max, lty = "dashed") +
+  theme(legend.key.size = unit(0.25, 'cm'), legend.title = element_text(size=9))
+
+# Visualize nFeature_RNA
+den2 <- ggplot(human.filtered@meta.data,
+       aes(color = sample,
+           x = nFeature_RNA,
+           fill = sample)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  #scale_color_manual(values = sample_colors) +
+  theme(legend.position =  "none") +
+  #scale_fill_manual(values = sample_colors) +
+  xlab("nFeature_RNA") +
+  ylab("Density") +
+  geom_vline(xintercept = nFeature.min, lty = "dashed") +
+  theme(legend.key.size = unit(0.25, 'cm'), legend.title = element_text(size=9))
+
+# Visualize cell complexity
+# Quality cells are usually above 0.80
+den3 <- ggplot(human.filtered@meta.data,
+       aes(color = sample,
+           x = cell.complexity,
+           fill = sample)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  #scale_color_manual(values = sample_colors) +
+  theme(legend.position =  "none") +
+  #scale_fill_manual(values = sample_colors) +
+  xlab("Cell Complexity (log10(nFeature/nCount))") +
+  ylab("Density") +
+  geom_vline(xintercept = complexity.cutoff, lty = "dashed") +
+  theme(legend.key.size = unit(0.25, 'cm'), legend.title = element_text(size=9))
+
+# Visualize percent.mt
+den4 <- ggplot(human.filtered@meta.data,
+       aes(color = sample,
+           x = percent.mt,
+           fill = sample)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_continuous(n.breaks = 4) +
+  geom_vline(xintercept = mt.cutoff, lty = "dashed") +
+  #scale_color_manual(values = sample_colors) +
+  theme(legend.position =  "none") +
+  #scale_fill_manual(values = sample_colors) +
+  xlab("% Mitochondrial Genes") +
+  ylab("Density") +
+  theme(legend.key.size = unit(0.25, 'cm'), legend.title = element_text(size=9))
+
+# Visualize percent.ribo.protein
+den5 <- ggplot(human.filtered@meta.data,
+       aes(color = sample,
+           x = percent.ribo.protein,
+           fill = sample)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  #scale_color_manual(values = sample_colors) +
+  theme(legend.position =  "none") +
+  #scale_fill_manual(values = sample_colors) +
+  xlab("% Ribosomal Protein Genes") +
+  ylab("Density") +
+  theme(legend.key.size = unit(0.25, 'cm'), legend.title = element_text(size=9))
+
+# Visualize percent.hb
+den6 <- ggplot(human.filtered@meta.data,
+       aes(color = sample,
+           x = percent.hb,
+           fill = sample)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  geom_vline(xintercept = hb.cutoff, lty = "dashed") +
+  #scale_color_manual(values = sample_colors) +
+  theme(legend.position =  "none") +
+  #scale_fill_manual(values = sample_colors) +
+  xlab("% Hemoglobin Genes") +
+  ylab("Density") +
+  theme(legend.key.size = unit(0.25, 'cm'), legend.title = element_text(size=9))
+
+# Arrange graphs in grid
+plots <- list(den1,den2,den3,den4,den5,den6)
+layout <- rbind(c(1,4),c(2,5),c(3,6))
+grid <- grid.arrange(grobs = plots, layout_matrix = layout)
+```
+
+```{r save_postfiltering_density, echo=FALSE, eval=FALSE, warning=FALSE}
+# save
+path <- paste0(out, "filtering_QC/density_curves_filtered.pdf")
+pdf(path, width = 12, height = 8)
+grid <- grid.arrange(grobs = plots, layout_matrix = layout)
+dev.off()
+
+# cleanup
+remove(den1,den2,den3,den4,den5,den6,plots,layout,grid)
+```
+
+## Violin plots
+```{r postfiltering_violins}
+# nFeature, nCount, and cell.complexity violins
+v3 <- VlnPlot(human.filtered,
+              features = c("nFeature_RNA", "nCount_RNA","cell.complexity"),
+              ncol = 3,
+              group.by = 'sample',
+              #cols = sample_colors,
+              pt.size = 0)
+v3
+
+#  percent violins
+v4 <- VlnPlot(human.filtered,
+              features = c("percent.mt","percent.ribo.protein","percent.hb"),
+              ncol = 3,
+              group.by = 'sample',
+              #cols = sample_colors,
+              pt.size = 0)
+v4
+```
+
+```{r save_postfiltering_violins, echo=FALSE, eval=FALSE}
+# save
+path <- paste0(out, "filtering_QC/violins_nFeature_nCount_complexity_filtered.pdf")
+pdf(path, width = 15, height = 4)
+v3
+dev.off()
+
+# save
+path <- paste0(out, "filtering_QC/violins_percent_filteredpdf")
+pdf(path, width = 15, height = 4)
+v4
+dev.off()
+
+# cleanup
+remove(v3,v4)
+```
+
+## Scatter plots
+```{r postfiltering_scatter}
+s4 <- ggplot(
+  human.filtered@meta.data,
+  aes(x = nCount_RNA, y = nFeature_RNA, color = percent.mt)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") +
+	scale_x_log10() +   	
+  scale_y_log10() + 
+  theme_classic() +
+  geom_vline(xintercept = nCount.min, lty = "dashed") + 
+  geom_hline(yintercept = nFeature.min, lty = "dashed") + 
+  facet_wrap(~sample) +
+  scale_colour_gradient(low = "gray90", high = "black", limits =c(0,100))
+s4
+
+s5 <- FeatureScatter(human.filtered,
+                     feature1 = "nCount_RNA",
+                     feature2 = "percent.mt",
+                     group.by = 'sample',
+                     #cols = sample_colors,
+                     shuffle = TRUE)
+s5
+
+s6 <- ggplot(
+  human.filtered@meta.data,
+  aes(x = nCount_RNA, y = nFeature_RNA, color = percent.hb)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") +
+	scale_x_log10() +   	
+  scale_y_log10() + 
+  theme_classic() +
+  geom_vline(xintercept = nCount.min, lty = "dashed") + 
+  geom_hline(yintercept = nFeature.min, lty = "dashed") + 
+  facet_wrap(~sample) +
+  scale_colour_gradient(low = "gray90", high = "black", limits =c(0,100))
+s6
+```
+
+```{r save_postfiltering_scatter,echo=FALSE,eval=FALSE}
+# save
+path <- paste0(out, "filtering_QC/scatter_nFeature_vs_nCount_filtered.pdf")
+pdf(path, width = 8, height = 8)
+s4
+dev.off()
+
+path <- paste0(out, "filtering_QC/scatter_nCount_vs_percentMT_filtered.pdf")
+pdf(path, width = 6, height = 6)
+s5
+dev.off()
+
+path <- paste0(out, "filtering_QC/scatter_nCount_vs_percentMT_filtered2.pdf")
+pdf(path, width = 6, height = 6)
+s6
+dev.off()
+
+# cleanup
+remove(s4,s5,s6)
+```
+
+## Box plot
+```{r boxplot}
+# Visualize the distribution of genes detected per cell via boxplot
+b1 <- ggplot(human.filtered@meta.data,
+       aes(x = sample, 
+           y = log10(nFeature_RNA), 
+           fill=sample)) + 
+  geom_boxplot() + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+  theme(plot.title = element_text(hjust = 0.5, face="bold")) +
+  ggtitle("Unique Genes / Cell / Sample") +
+  #scale_color_manual(values = sample_colors) +
+  #scale_fill_manual(values = sample_colors) +
+  xlab("Sample")
+b1
+```
+
+```{r save_boxplot,echo=FALSE,eval=FALSE}
+# save
+path <- paste0(out, "filtering_QC/boxplot_nFeature_per_sample.pdf")
+pdf(path, width = 12, height = 6)
+dev.off()
+
+# cleanup
+remove(b1)
+```
+
+## Top transcripts
+```{r top_transcripts}
+df <- data.frame(gene_name = rownames(human.filtered))
+df$rsum <- rowSums(x = human.filtered, slot = "counts")
+df <- df[order(df$rsum, decreasing = TRUE),]
+rownames(df) <- 1:nrow(df)
+head(df, 10)
+```
+
+```{r save_top_transcripts,echo=FALSE,eval=FALSE}
+write.table(df, 
+            paste0(out, "filtering_QC/top_transcripts.tsv"),
+            quote = FALSE,
+            row.names = TRUE)
+```
+
+# Cluster
+## SCTransform
+- SCTransform method is a more accurate method of normalizing, estimating the 
+variance of the raw filtered data, and identifying the most variable genes. \
+- Variation in sequencing depth (total nCount_RNA per cell) is normalized using 
+a regularized negative binomial model. \
+- If there are other sources of uninteresting variation it can be included. \
+- NOTE: By default, after normalizing, adjusting the variance, and regressing out 
+uninteresting sources of variation, SCTransform will rank the genes by residual 
+variance and output the 3000 most variable genes. If the dataset has larger cell 
+numbers, then it may be beneficial to adjust this parameter higher using the 
+variable.features.n argument. Additionally, the last line of output specifies 
+“Set default assay to SCT”. \
+- It is suggested to not regress out batch, and instead use a data integration 
+method like Harmony \
+```{r split_object}
+# transform
+options(future.globals.maxSize = 8000 * 1024^2)
+human.filtered <- SCTransform(human.filtered, verbose = FALSE)
+```
+
+## PCA
+```{r run_pca, warning=FALSE, message=FALSE}
+# run PCA on the merged object
+human.filtered <- RunPCA(object = human.filtered, assay = "SCT")
+```
+
+```{r plot_pca}
+# Reset idents and levels
+DefaultAssay(human.filtered) <- "SCT"
+Idents(human.filtered) <- "sample"
+
+# Plot PCA
+pca1 <- DimPlot(human.filtered,
+                reduction = "pca",
+                shuffle = TRUE)
+pca1
+pca2 <- DimPlot(human.filtered,
+                reduction = "pca",
+                split.by = "sample",
+                ncol = 5)
+pca2
+
+# Plot PC elbow
+e1 <- ElbowPlot(human.filtered,
+                reduction = "pca") +
+  geom_vline(xintercept = 10, linetype = "dashed", color = "red")
+e1
+```
+
+```{r save_pca, echo=FALSE, eval=FALSE, message=FALSE, warning=FALSE}
+# save pca1
+path <- paste0(out, "clustering_QC/PCA_colored_by_sample.pdf")
+pdf(path, width = 8, height = 6)
+pca1
+dev.off()
+
+# save pca2
+path <- paste0(out, "clustering_QC/PCA_split_by_sample.pdf")
+pdf(path, width = 15, height = 15)
+pca2
+dev.off()
+
+# save elbow
+path <- paste0(out, "clustering_QC/PCA_elbow.pdf")
+pdf(path, width = 6, height = 6)
+e1
+dev.off()
+
+# cleanup
+remove(pca1,pca2,e1)
+```
+
+## UMAP
+To overcome the extensive technical noise in the expression of any single gene 
+for scRNA-seq data, Seurat assigns cells to clusters based on their PCA scores 
+derived from the expression of the integrated most variable genes, with each PC 
+essentially representing a “metagene” that combines information across a 
+correlated gene set. Determining how many PCs to include in the clustering step 
+is therefore important to ensure that we are capturing the majority of the 
+variation, or cell types, present in our dataset.
+```{r run_UMAP, message=FALSE, warning=FALSE}
+# run UMAP
+human.filtered <- RunUMAP(human.filtered,
+                          dims = 1:10,
+                          reduction = "pca",
+                          n.components = 3) # set to 3 to use with VR
+
+# plot UMAP
+DimPlot(human.filtered,
+        shuffle = TRUE)
+```
+
+## Clusters
+Seurat uses a graph-based clustering approach, which embeds cells in a graph 
+structure, using a K-nearest neighbor (KNN) graph (by default), with edges drawn 
+between cells with similar gene expression patterns. Then, it attempts to 
+partition this graph into highly interconnected ‘quasi-cliques’ or ‘communities’ 
+[Seurat - Guided Clustering Tutorial]. \
+
+We will use the FindClusters() function to perform the graph-based clustering. 
+The resolution is an important argument that sets the “granularity” of the 
+downstream clustering and will need to be optimized for every individual experiment. 
+For datasets of 3,000 - 5,000 cells, the resolution set between 0.4-1.4 generally 
+yields good clustering. Increased resolution values lead to a greater number of 
+clusters, which is often required for larger datasets. \
+
+The FindClusters() function allows us to enter a series of resolutions and will 
+calculate the “granularity” of the clustering. This is very helpful for testing 
+which resolution works for moving forward without having to run the function for 
+each resolution. \
+
+```{r find_neighbors, message=FALSE, warning=FALSE}
+# Determine the K-nearest neighbor graph
+human.unannotated <- FindNeighbors(object = human.filtered,
+                                   assay = "SCT",
+                                   reduction = "pca",
+                                   dims = 1:10)
+
+# Determine the clusters for various resolutions
+human.unannotated <- FindClusters(object = human.unannotated,
+                                  algorithm = 1, # 1 = Louvain
+                                  resolution = seq(0.1, 0.5, by = 0.1))
+human.unannotated$seurat_clusters <- human.unannotated$SCT_snn_res.0.1
+```
+
+## Explore resolutions
+```{r explore_resolutions}
+# 0.1
+DimPlot(human.unannotated,
+        group.by = "SCT_snn_res.0.1",
+        label = TRUE)
+
+# 0.2
+DimPlot(human.unannotated,
+        group.by = "SCT_snn_res.0.2",
+        label = TRUE)
+
+# 0.3
+DimPlot(human.unannotated,
+        group.by = "SCT_snn_res.0.3",
+        label = TRUE)
+```
+
+```{r save_final_object,echo=FALSE,eval=TRUE}
+# set params and normalize
+Idents(human.unannotated) <- "seurat_clusters"
+DefaultAssay(human.unannotated) <- "RNA"
+human.unannotated <- NormalizeData(human.unannotated)
+
+# save seurat object
+saveRDS(human.unannotated, 
+        paste0("../../rObjects/unannotated_", tolower(sample), "_seurat_obj.rds"))
+remove(human.filtered)
+
+# read seurat object
+#human.unannotated <- 
+#  readRDS(paste0("../../rObjects/unannotated_", tolower(sample), "_seurat_obj.rds"))
+```
+
+# Unannotated
+## Unannotated UMAP
+```{r}
+# set params
+cluster_colors <- c("green2","darkgreen","blue","red","gold","cornflowerblue",
+                    "cyan","violet")
+human.unannotated$seurat_clusters <- human.unannotated$SCT_snn_res.0.1
+Idents(human.unannotated) <- "seurat_clusters"
+
+# umap dim 1 & 2
+u1 <- DimPlot(human.unannotated,
+             group.by = "seurat_clusters",
+             label = TRUE,
+             shuffle = TRUE,
+             cols = cluster_colors)
+u1
+
+# umap dim 2 & 3
+u2 <- DimPlot(human.unannotated,
+             group.by = "seurat_clusters",
+             label = TRUE,
+             dims = c(2,3),
+             shuffle = TRUE,
+             cols = cluster_colors)
+u2
+```
+
+```{r save_unannotated_umap, echo=FALSE, eval=FALSE}
+path <- paste0(out, "UMAP/unannotated_clusters_dim1&2.pdf")
+pdf(path, width = 8, height = 6)
+u1
+dev.off()
+
+path <- paste0(out, "UMAP/unannotated_clusters_dim2&3.pdf")
+pdf(path, width = 8, height = 6)
+u2
+dev.off()
+
+remove(u1,u2)
+```
+
+## Cells per cluster
+```{r cells_per_cluster}
+# get num cells per cluster
+df <- as.data.frame(table(human.unannotated$seurat_clusters))
+colnames(df) <- c("cluster","cell_count")
+
+# save
+path <- paste0(out, "clustering_QC/cells_per_cluster_unannotated.tsv")
+write.table(x = df,
+            file = path,
+            sep = "\t",
+            quote = FALSE,
+            row.names = FALSE)
+```
+
+## Feature plots
+```{r feature_plots, message=FALSE, warning=FALSE}
+# UMAP percent.mt
+f1 <- FeaturePlot(human.unannotated,
+            reduction = "umap", 
+            features = "percent.mt") + 
+  scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
+f1
+
+# UMAP percent.ribo
+f2 <- FeaturePlot(human.unannotated,
+            reduction = "umap", 
+            features = "percent.ribo.protein") + 
+  scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
+f2
+
+# UMAP percent.hb
+f3 <- FeaturePlot(human.unannotated,
+            reduction = "umap", 
+            features = "percent.hb") + 
+  scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
+f3
+
+# UMAP nCount
+f4 <- FeaturePlot(human.unannotated,
+            reduction = "umap", 
+            features = "nCount_RNA") + 
+  scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
+f4
+
+# UMAP nFeature
+f5 <- FeaturePlot(human.unannotated,
+            reduction = "umap", 
+            features = "nFeature_RNA") + 
+  scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
+f5
+
+# UMAP cell.complexity
+f6 <- FeaturePlot(human.unannotated,
+            reduction = "umap", 
+            features = "cell.complexity") + 
+  scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
+f6
+```
+
+```{r save_feature_plots, echo=FALSE, eval=FALSE}
+path <- paste0(out, "clustering_QC/heatmap_")
+pdf(paste0(path, "percent_mito.pdf"), width = 8, height = 6)
+f1
+dev.off()
+
+pdf(paste0(path, "percent_ribo_protein.pdf"), width = 8, height = 6)
+f2
+dev.off()
+
+pdf(paste0(path, "percent_hb.pdf"), width = 8, height = 6)
+f3
+dev.off()
+
+pdf(paste0(path, "nCount.pdf"), width = 8, height = 6)
+f4
+dev.off()
+
+pdf(paste0(path, "nFeature.pdf"), width = 8, height = 6)
+f5
+dev.off()
+
+pdf(paste0(path, "cell_complexity.pdf"), width = 8, height = 6)
+f6
+dev.off()
+
+remove(f1,f2,f3,f4,f5,f6)
+```
+
+# Find markers
+## Auto find markers
+```{r auto_find_markers}
+# set params
+Idents(human.unannotated) <- "seurat_clusters"
+
+# find markers
+markers <- SeuratWrappers::RunPrestoAll(
+  object = human.unannotated,
+  assay = "RNA",
+  slot = "counts",
+  only.pos = FALSE
+)
+
+# filter based on adjusted p-value
+markers <- markers[markers$p_val_adj < 0.01,]
+
+# get top 3 and top 20 per cluster
+top3 <- Reduce(rbind,
+               by(markers,
+                  markers["cluster"],
+                  head,
+                  n = 3))
+top20 <- Reduce(rbind,
+               by(markers,
+                  markers["cluster"],
+                  head,
+                  n = 20))
+
+# save
+write.table(markers, 
+            paste0(out, "markers/auto_find_markers_adjpval_0.01.tsv"),
+            sep = "\t",
+            quote = FALSE,
+            row.names = FALSE)
+```
+
+## Azimuth
+- Human PBMC reference downloaded from Azimuth
+- https://zenodo.org/records/4546839
+```{r run_azimuth}
+result <- RunAzimuth(query = human.unannotated, reference = "../../refs/")
+```
+
+```{r plot_azimuth_predictions}
+# visualize Azimuth L1 annotation
+d1 <- DimPlot(result,
+              group.by = "predicted.celltype.l1",
+              reduction = "umap",
+              shuffle = TRUE,
+              raster = FALSE,
+              cols = c("pink","gray","red","gold","chartreuse2",
+                       "cornflowerblue","chocolate4","black"))
+d1
+
+# visualize Azimuth L2 annotation
+d2 <- DimPlot(result,
+              group.by = "predicted.celltype.l2",
+              reduction = "umap",
+              shuffle = TRUE,
+              raster = FALSE,
+              cols = c("yellow","gold","orange","red","maroon","darkred",
+                       "lightgreen","chartreuse2","green4","darkgreen",
+                       "cyan","lightblue","cornflowerblue","steelblue","blue","navyblue",
+                       "pink","salmon","violet","purple","purple4","deeppink","pink2",
+                       "tan","tan3","chocolate4","gray","gray35","black"))
+d2
+```
+
+```{r save_azimuth_predictions}
+pdf(paste0(out, "UMAP/azimuth_L1_predictions.pdf"), width = 8, height = 6)
+d1
+dev.off()
+
+pdf(paste0(out, "UMAP/azimuth_L2_predictions.pdf"), width = 10, height = 6)
+d2
+dev.off()
+
+remove(d1,d2)
+```
+
+```{r azimuth_annotation_tables}
+# Output Azimuth annotation tables
+df1 <- as.data.frame(table(result$predicted.celltype.l1))
+colnames(df1) <- c("predicted.celltype.l1","cell_count")
+path <- paste0(out, "clustering_QC/cells_per_cluster_unannotated_azimuth_L1.tsv")
+write.table(x = df1,
+            file = path,
+            sep = "\t",
+            quote = FALSE,
+            row.names = FALSE)
+
+df2 <- as.data.frame(table(result$predicted.celltype.l2))
+colnames(df2) <- c("predicted.celltype.l2","cell_count")
+path <- paste0(out, "clustering_QC/cells_per_cluster_unannotated_azimuth_L2.tsv")
+write.table(x = df2,
+            file = path,
+            sep = "\t",
+            quote = FALSE,
+            row.names = FALSE)
+
+remove(df,df2)
+```
+
+```{r add_azimuth_predictions}
+# add L1 annotations
+all.equal(colnames(result), colnames(human.unannotated))
+human.unannotated$Azimuth_L1_predictions <- result$predicted.celltype.l1
+human.unannotated$Azimuth_L1_scores <- result$predicted.celltype.l1.score
+
+# add L2 annotations
+human.unannotated$Azimuth_L2_predictions <- result$predicted.celltype.l2
+human.unannotated$Azimuth_L2_scores <- result$predicted.celltype.l2.score
+```
+
+## Marker violins
+- Negative for Lineage1 (Lin1): CD3, CD14, CD16, CD19, CD20, CD56 \
+  - CD3 = CD3E = T cells \
+  - CD14 = innate macrophages \
+  - CD16 = FCGR3B = NK cells, neutrophils, monocytes, macrophages, T cells \
+  - CD19 = B cells \
+  - CD20 = MS4A1 = B cells \
+  - CD56 = NCAM1 = NK cells \
+- Positive for HLA-DR \
+    - Human Leukocyte Antigen – DR isotype, a MHC class II cell surface receptor, 
+usually found in APCs like macrophages, DCs, and B-cells \
+- DC subsets \
+  - CD123 = IL3RA = plasmacytoid DC marker \
+  - CD114 = CSF3R \
+  - CD11C = ITGAX = myeloid DC marker \
+```{r potential_marker_violins}
+# auto markers
+v1 <- VlnPlot(human.unannotated,
+              features = top3$gene,
+              split.by = "seurat_clusters",
+              group.by = "seurat_clusters",
+              cols = cluster_colors,
+              stack = TRUE,
+              flip = TRUE)
+v1
+
+# flow markers
+flow.markers <- c("CD3E","CD14","FCGR3B","CD19","MS4A1","NCAM1","HLA-DRA",
+                  "IL3RA","ITGAX","CSF3R")
+v2 <- VlnPlot(human.unannotated,
+             features = flow.markers,
+             split.by = "seurat_clusters",
+             group.by = "seurat_clusters",
+             cols = cluster_colors,
+             stack = TRUE,
+             flip = TRUE)
+v2
+
+# Chao's markers
+goi <- c("HLA-DRA","ITGAX","IL3RA","CSF3R",  # DCs
+         "GZMA","NKG7",            # NK cells
+         "IL7R","TRAC","CD3E",     # T cells
+         "LILRA4","PTPRS",         # DCs
+         "CD79A","IGHD","MS4A1",   # B cells
+         "CDKN1C", "C5AR1",        # Monocytes
+         "SLCO5A1",                # Plasma cells
+         "HPGD","SORBS1","PGR","PCLO","LRMDA")
+v3 <- VlnPlot(human.unannotated,
+             features = goi,
+             split.by = "seurat_clusters",
+             group.by = "seurat_clusters",
+             cols = cluster_colors,
+             stack = TRUE,
+             flip = TRUE)
+v3
+d <- DotPlot(object = human.unannotated,
+             features = goi) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+d
+
+# DC/monocyte markers
+dc.mono <- c("CST3", "LYZ", "HLA-DRA", "CD1C", "CLEC9A", "CLEC4C", "LILRA4", 
+             "PTPRS", "PLD4", "ITM2C", "IRF8", "IL3RA", "CD14", "CTSS", "S100A8", 
+             "S100A9", "S100A12", "CDKN1C", "LST1", "SERPINA1", "IFITM3","FCER1A",
+             "CLEC10A")
+v4 <- VlnPlot(human.unannotated,
+             features = dc.mono,
+             split.by = "seurat_clusters",
+             group.by = "seurat_clusters",
+             cols = cluster_colors,
+             stack = TRUE,
+             flip = TRUE)
+v4
+
+t.nk <- c("CD3D", "CD3E", "CD3G", "CD4", "CD8A", "CD8B", "TRAC", "TRDC", "NKG7", 
+          "KLRD1", "KLRF1", "GNLY", "PRF1", "GZMB", "XCL1", "XCL2", "NCAM1")
+v5 <- VlnPlot(human.unannotated,
+             features = t.nk,
+             split.by = "seurat_clusters",
+             group.by = "seurat_clusters",
+             cols = cluster_colors,
+             stack = TRUE,
+             flip = TRUE)
+v5
+
+b <- c("CD79A", "CD79B", "MS4A1,CD22", "IL4R", "FCER2", "TCL1A", "IGHD", "IGHM",
+       "COCH", "SSPN", "TNFRSF13B", "BANK1", "TEX9", "PTPRC", "ITGA4", "CD82", 
+       "JCHAIN", "MZB1", "IGHA1", "IGHA2")
+v6 <- VlnPlot(human.unannotated,
+             features = b,
+             split.by = "seurat_clusters",
+             group.by = "seurat_clusters",
+             cols = cluster_colors,
+             stack = TRUE,
+             flip = TRUE)
+v6
+```
+
+```{r}
+path <- paste0(out, "markers/unannotated_auto_cluster_markers_violin.pdf")
+pdf(paste0(path, width = 8, height = 8))
+v1
+dev.off()
+
+path <- paste0(out, "markers/unannotated_flow_markers_violin.pdf")
+pdf(paste0(path, width = 8, height = 6))
+v2
+dev.off()
+
+path <- paste0(out, "markers/unannotated_manual_cluster_markers_violin.pdf")
+pdf(paste0(path, width = 8, height = 8))
+v3
+dev.off()
+
+path <- paste0(out, "markers/unannotated_dc_monocytes_markers_violin.pdf")
+pdf(paste0(path, width = 8, height = 8))
+v4
+dev.off()
+
+path <- paste0(out, "markers/unannotated_t_nk_cell_markers_violin.pdf")
+pdf(paste0(path, width = 8, height = 8))
+v5
+dev.off()
+
+path <- paste0(out, "markers/unannotated_b_cell_markers_violin.pdf")
+pdf(paste0(path, width = 8, height = 8))
+v6
+dev.off()
+
+remove(v1,v2,v3,v4,v5,v6)
+```
+
+# Shiny App
+- scDRcell is the function used to plot the first UMAP
+- inpConf is an argument of scDRcell, inpConf = sc1conf
+- infConf gets subset by UI column based on inpdrX which is the user's input for x-axis
+- inpdrX is used to set the x-axis label
+```{r shiny_app, eval=FALSE}
+# create new object
+library(ShinyCell)
+shiny.obj <- human.unannotated
+VariableFeatures(shiny.obj) <- shiny.obj@assays$SCT@var.features
+
+# set default params
+DefaultAssay(shiny.obj) <- "RNA"
+
+# create config
+names <- colnames(shiny.obj@meta.data)
+names <- names[c(21,26,22:25,2:20)]
+sc.config <- createConfig(obj = shiny.obj,
+                          meta.to.include = names)
+
+# change wd
+setwd("../../results/")
+
+# output shiny app folder
+makeShinyApp(obj = shiny.obj, 
+             scConf = sc.config, 
+             gene.mapping = TRUE,
+             shiny.title = "Sensitivity 3, All Clusters Pass 1")
+
+# manual config edits
+setwd("../../results/")
+sc1conf <- readRDS("shinyApp/sc1conf.rds")
+cluster_hex <- "blue|cyan|gold|red"
+sc1conf[2,4] <- cluster_hex
+saveRDS(sc1conf, "shinyApp/sc1conf.rds")
+#group_hex <- "#B89B74|#725E47|#B15928|#F7590B|#A6CEE3|#34B1E8|#ED8F47|#F4CC25"
+```

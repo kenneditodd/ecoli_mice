@@ -1,0 +1,999 @@
+---
+title: "PLX5622 Diet Mice scRNAseq"
+subtitle: "QC and DE"
+author: "Kennedi Todd"
+date: "11/21/2024"
+output:
+  html_document:
+    theme: cerulean
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+# Setup
+## Working directory
+```{r working_directory}
+knitr::opts_knit$set(root.dir = ".")
+```
+
+## Libraries
+```{r libraries, message=FALSE, warning=FALSE}
+# load packages
+library(ComplexUpset) # instersection_size()
+library(dplyr)        # ungroup()
+library(ggrepel)      # geom_text_repel()
+#library(ggtree)       # BuildClusterTree()
+library(gridExtra)    # grid.arrange()
+library(gtools)       # smartbind()
+library(parallel)     # detectCores()
+library(plotly)       # plot_ly()
+library(Seurat)       # DimPlot()
+library(stringr)      # str_match
+library(tidyr)        # %>%
+library(UpSetR)       # fromList()
+```
+
+## Variables and functions
+```{r set_variables_and_functions}
+# variables
+out <- "../../results/all_samples/without_integration"
+
+# single cell functions
+files <- list.files("../../functions", full.names = TRUE)
+invisible(lapply(files, source))
+```
+
+## Load data
+```{r read_annotated_obj}
+mouse.annotated <- readRDS("../../rObjects/seurat_obj_annotated.rds")
+
+mouse.annotated$group <- str_match(mouse.annotated$donor, "([HDRRP]+).+")[,2]
+mouse.annotated$group2 <- paste0(mouse.annotated$group, "_", mouse.annotated$sex)
+```
+
+# QC
+## Sex check
+```{r}
+VlnPlot(object = mouse.annotated,
+        group.by = "sample",
+        features = c("XIST","UTY"))
+```
+
+## 2D UMAP
+```{r annotated_umap}
+# set colors
+cluster_colors <- c("pink","gray","red","gold","chartreuse2",
+                       "cornflowerblue","chocolate4","black")
+
+# umap
+Idents(mouse.annotated) <- "Azimuth_L1_predictions"
+umap <- DimPlot(object = mouse.annotated, 
+        reduction = "umap",
+        group.by = "Azimuth_L1_predictions",
+        cols = cluster_colors)
+umap
+```
+
+## Cluster markers
+
+## Split UMAP
+```{r split_umaps}
+# group1
+umap1 <- DimPlot(object = mouse.annotated, 
+                 group.by = "Azimuth_L1_predictions",
+                 reduction = "umap",
+                 split.by = "group",
+                 cols = cluster_colors)
+umap1
+
+# group2
+umap2 <- DimPlot(object = mouse.annotated, 
+                 group.by = "Azimuth_L1_predictions",
+                 reduction = "umap",
+                 split.by = "group2",
+                 ncol = 2,
+                 cols = cluster_colors)
+umap2
+
+# sex
+umap3 <- DimPlot(object = mouse.annotated, 
+                 group.by = "Azimuth_L1_predictions",
+                 reduction = "umap",
+                 split.by = "sex",
+                 cols = cluster_colors)
+umap3
+
+# sample
+umap4 <- DimPlot(object = mouse.annotated, 
+                 group.by = "Azimuth_L1_predictions",
+                 reduction = "umap",
+                 split.by = "sample",
+                 ncol = 4,
+                 cols = cluster_colors)
+umap4
+
+# mito.factor
+umap5 <- DimPlot(object = mouse.annotated, 
+                 group.by = "Azimuth_L1_predictions",
+                 reduction = "umap",
+                 split.by = "mito.factor",
+                 cols = cluster_colors,
+                 ncol = 2)
+umap5
+
+# phase
+umap6 <- DimPlot(object = mouse.annotated, 
+                 group.by = "Azimuth_L1_predictions",
+                 reduction = "umap",
+                 split.by = "phase",
+                 cols = cluster_colors)
+umap6
+```
+
+```{r save_split_umap, echo=FALSE, eval=FALSE}
+path <- paste0(out, "clustering_QC/")
+pdf(paste0(path, "umap_split_group.pdf"), width = 8, height = 4)
+umap1
+dev.off()
+
+pdf(paste0(path, "umap_split_group2.pdf"), width = 8, height = 6)
+umap2
+dev.off()
+
+pdf(paste0(path, "umap_split_sex.pdf"), width = 8, height = 4)
+umap3
+dev.off()
+
+pdf(paste0(path, "umap_split_sample.pdf"), width = 10, height = 10)
+umap4
+dev.off()
+
+pdf(paste0(path, "umap_split_mito_factor.pdf"), width = 8, height = 6)
+umap5
+dev.off()
+
+pdf(paste0(path, "umap_split_cell_cycle_phase.pdf"), width = 10, height = 4)
+umap6
+dev.off()
+
+remove(umap1,umap2,umap3,umap4,umap5,umap6,umap7,umap8)
+```
+
+## Heatmap UMAP
+```{r feature_plots_annotated, warning=FALSE, message=FALSE}
+# UMAP percent_mt
+f1 <- FeaturePlot(mouse.annotated, 
+            reduction = "umap", 
+            features = "percent_mt")  + 
+  scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
+f1
+
+# UMAP nCount
+f2 <- FeaturePlot(mouse.annotated, 
+            reduction = "umap",
+            features = "nCount_RNA") + 
+  scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
+f2
+
+# UMAP nFeature
+f3 <- FeaturePlot(mouse.annotated, 
+            reduction = "umap", 
+            features = "nFeature_RNA") + 
+  scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
+f3
+
+# UMAP percent_ribo
+f4 <- FeaturePlot(mouse.annotated, 
+            reduction = "umap", 
+            features = "percent_ribo") + 
+  scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
+f4
+
+# UMAP cell_complexity
+f5 <- FeaturePlot(mouse.annotated, 
+            reduction = "umap", 
+            features = "cell_complexity") + 
+  scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
+f5
+
+# UMAP percent_hb
+f6 <- FeaturePlot(mouse.annotated, 
+            reduction = "umap", 
+            features = "percent_hb") + 
+  scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
+f6
+```
+
+```{r save_umap_heatmap, echo=FALSE, eval=FALSE}
+path <- paste0(out, "clustering_QC/umap_heatmap_")
+pdf(paste0(path, "percent_mito.pdf"), width = 8, height = 6)
+f1
+dev.off()
+
+pdf(paste0(path, "nCount.pdf"), width = 8, height = 6)
+f2
+dev.off()
+
+pdf(paste0(path, "nFeature.pdf"), width = 8, height = 6)
+f3
+dev.off()
+
+pdf(paste0(path, "percent_ribo.pdf"), width = 8, height = 6)
+f4
+dev.off()
+
+pdf(paste0(path, "cell_complexity.pdf"), width = 8, height = 6)
+f5
+dev.off()
+
+pdf(paste0(path, "percent_hb.pdf"), width = 8, height = 6)
+f6
+dev.off()
+
+remove(f1,f2,f3,f4,f5,f6)
+```
+
+## Percent cells per cluster
+```{r percent_cells}
+# sex
+b2 <- mouse.annotated@meta.data %>%
+  group_by(Azimuth_L1_predictions, sex) %>%
+  dplyr::count() %>%
+  group_by(Azimuth_L1_predictions) %>%
+  dplyr::mutate(percent = 100*n/sum(n)) %>%
+  ungroup() %>%
+  ggplot(aes(x=Azimuth_L1_predictions,y=percent, fill=sex)) +
+  theme_classic() +
+  geom_col() +
+  ggtitle("Percentage of sex per cluster") +
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1))
+b2
+
+# sample
+b3 <- mouse.annotated@meta.data %>%
+  group_by(Azimuth_L1_predictions, sample) %>%
+  dplyr::count() %>%
+  group_by(Azimuth_L1_predictions) %>%
+  dplyr::mutate(percent = 100*n/sum(n)) %>%
+  ungroup() %>%
+  ggplot(aes(x=Azimuth_L1_predictions,y=percent, fill=sample)) +
+  theme_classic() +
+  geom_col() +
+  ggtitle("Percentage of sample per cluster") +
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1))
+b3
+
+# phase
+b4 <- mouse.annotated@meta.data %>%
+  group_by(Azimuth_L1_predictions, phase) %>%
+  dplyr::count() %>%
+  group_by(Azimuth_L1_predictions) %>%
+  dplyr::mutate(percent = 100*n/sum(n)) %>%
+  ungroup() %>%
+  ggplot(aes(x=Azimuth_L1_predictions,y=percent, fill=phase)) +
+  theme_classic() +
+  geom_col() +
+  ggtitle("Percentage of phase per cluster") +
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1))
+b4
+
+# mito.factor
+b5 <- mouse.annotated@meta.data %>%
+  group_by(Azimuth_L1_predictions, mito.factor) %>%
+  dplyr::count() %>%
+  group_by(Azimuth_L1_predictions) %>%
+  dplyr::mutate(percent = 100*n/sum(n)) %>%
+  ungroup() %>%
+  ggplot(aes(x=Azimuth_L1_predictions,y=percent, fill=mito.factor)) +
+  theme_classic() +
+  geom_col() +
+  ggtitle("Percentage of mito.factor per cluster") +
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1))
+b5
+
+# group
+b6 <- mouse.annotated@meta.data %>%
+  group_by(Azimuth_L1_predictions, group) %>%
+  dplyr::count() %>%
+  group_by(Azimuth_L1_predictions) %>%
+  dplyr::mutate(percent = 100*n/sum(n)) %>%
+  ungroup() %>%
+  ggplot(aes(x=Azimuth_L1_predictions,y=percent, fill=group)) +
+  theme_classic() +
+  geom_col() +
+  ggtitle("Percentage of group per cluster") +
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1))
+b6
+
+# group2
+b7 <- mouse.annotated@meta.data %>%
+  group_by(Azimuth_L1_predictions, group2) %>%
+  dplyr::count() %>%
+  group_by(Azimuth_L1_predictions) %>%
+  dplyr::mutate(percent = 100*n/sum(n)) %>%
+  ungroup() %>%
+  ggplot(aes(x=Azimuth_L1_predictions,y=percent, fill=group2)) +
+  theme_classic() +
+  geom_col() +
+  ggtitle("Percentage of group per cluster") +
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1))
+b7
+```
+
+```{r save_percent_cells,echo=FALSE,eval=FALSE}
+# save
+pdf(paste0(path, "sex_per_cluster.pdf"), width = 8, height = 6)
+b2
+dev.off()
+
+# save
+pdf(paste0(path, "sample_per_cluster.pdf"), width = 8, height = 6)
+b3
+dev.off()
+
+# save
+pdf(paste0(path, "phase_per_cluster.pdf"), width = 8, height = 6)
+b4
+dev.off()
+
+# save
+pdf(paste0(path, "mito_factor_per_cluster.pdf"), width = 8, height = 6)
+b5
+dev.off()
+
+# save
+pdf(paste0(path, "group_per_cluster.pdf"), width = 8, height = 6)
+b6
+dev.off()
+
+# save
+pdf(paste0(path, "group2_per_cluster.pdf"), width = 8, height = 6)
+b7
+dev.off()
+
+# cleanup
+remove(b2,b3,b4,b5,b6,b7)
+```
+
+## Cluster tree
+```{r cluster_tree_annotated, message=FALSE, warning=FALSE}
+Idents(mouse.annotated) <- mouse.annotated$Azimuth_L1_predictions
+mouse.annotated <- BuildClusterTree(object = mouse.annotated,
+                                     dims = 1:15,
+                                     reorder = FALSE,
+                                     reorder.numeric = FALSE)
+
+tree <- mouse.annotated@tools$BuildClusterTree
+tree$tip.label <- paste0(tree$tip.label)
+
+p <- ggtree::ggtree(tree, aes(x, y)) +
+  scale_y_reverse() +
+  ggtree::geom_tree() +
+  ggtree::theme_tree() +
+  ggtree::geom_tiplab(offset = 1) +
+  ggtree::geom_tippoint(color = cluster_colors[1:length(tree$tip.label)], shape = 16, size = 5) +
+  coord_cartesian(clip = 'off') +
+  theme(plot.margin = unit(c(0,2.5,0,0), 'cm'))
+p
+```
+
+```{r save_annotated_cluster_tree, echo=FALSE, eval=FALSE}
+pdf(paste0(out, "clustering_QC/cluster_tree_annotated.pdf"), width = 20, height = 10)
+p
+dev.off()
+```
+
+## Cells per sample
+```{r cells_per_sample}
+data <- as.data.frame(table(mouse.annotated$sample))
+colnames(data) <- c("sample","frequency")
+
+ncells <- ggplot(data, aes(x = sample, y = frequency, fill = sample)) + 
+  geom_col() +
+  theme_classic() +
+  geom_text(aes(label = frequency), 
+            position=position_dodge(width=0.9), 
+            vjust=-0.25) +
+  scale_y_continuous(breaks = seq(0,25000, by = 5000), limits = c(0,25000)) +
+  ggtitle("Filtered: cells per sample") +
+  theme(legend.position =  "none") + 
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+ncells
+```
+
+```{r save_cells_per_sample, echo=FALSE, eval=FALSE}
+pdf(paste0(out, "clustering_QC/cells_per_sample.pdf"), width = 6, height = 4)
+ncells
+dev.off()
+```
+
+## Cells per cluster
+```{r cells_per_cluster}
+data <- as.data.frame(table(mouse.annotated$Azimuth_L1_predictions))
+colnames(data) <- c("cluster","frequency")
+
+ncells <- ggplot(data, aes(x = cluster, y = frequency, fill = cluster)) + 
+  geom_col() +
+  theme_classic() +
+  geom_text(aes(label = frequency), 
+            position=position_dodge(width=0.9), 
+            vjust=-0.25) +
+  scale_y_continuous(breaks = seq(0,150000, by = 10000), limits = c(0,150000)) +
+  ggtitle("Cells per Cluster") +
+  theme(legend.position =  "none") + 
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+ncells
+```
+
+```{r save_cells_per_cluster, echo=FALSE, eval=FALSE}
+pdf(paste0(out, "clustering_QC/cells_per_cluster.pdf"), width = 8, height = 6)
+ncells
+dev.off()
+```
+
+## Cells per cluster per sample
+```{r cells_per_cluster_per_sample}
+# extract data
+data <- data.frame(cluster = mouse.annotated$Azimuth_L1_predictions,
+                   sample = mouse.annotated$sample)
+data_summary <- data %>%
+  group_by(cluster, sample) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  ungroup()
+
+# Create the stacked bar plot
+ncells <- ggplot(data_summary, aes(x = cluster, y = count, fill = sample)) +
+  geom_bar(stat = "identity") +
+  labs(y = "Frequency", x = "Cluster", fill = "Sample") +
+  theme_minimal() +
+  ggtitle("Frequency of Cells in Each Cluster with Sample Distribution") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust=1)) +
+  ylim(c(0,150000))
+ncells
+
+# reformat for table output
+data_summary <- data_summary %>% pivot_wider(names_from = cluster, values_from = count)
+```
+
+```{r save_cells_per_cluster_per_sample, echo=FALSE, eval=FALSE}
+pdf(paste0(out, "clustering_QC/cells_per_cluster_with_sample_distribution.pdf"),
+    width = 8, height = 6)
+ncells
+dev.off()
+```
+
+## Cells per cluster per group
+```{r cells_per_cluster_per_group}
+# extract data
+data <- data.frame(cluster = mouse.annotated$Azimuth_L1_predictions,
+                   group = mouse.annotated$group)
+data_summary <- data %>%
+  group_by(cluster, group) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  ungroup()
+
+# Create the stacked bar plot
+ncells <- ggplot(data_summary, aes(x = cluster, y = count, fill = group)) +
+  geom_bar(stat = "identity") +
+  labs(y = "Frequency", x = "Cluster", fill = "Group") +
+  theme_minimal() +
+  ggtitle("Frequency of Cells in Each Cluster with Group Distribution") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust=1)) +
+  ylim(c(0,150000))
+ncells
+
+# reformat for table output
+data_summary <- data_summary %>% pivot_wider(names_from = cluster, values_from = count)
+```
+
+```{r save_cells_per_cluster_per_group, echo=FALSE, eval=FALSE}
+pdf(paste0(out, "clustering_QC/cells_per_cluster_with_group_distribution.pdf"),
+    width = 8, height = 6)
+ncells
+dev.off()
+
+write.table(data_summary, 
+            file = paste0(out, "clustering_QC/cells_per_cluster_with_group_distribution.tsv"), 
+            sep = "\t",quote = FALSE, row.names = FALSE)
+```
+
+# Differential expression
+## RRP vs HD
+```{r RRP_vs_HD, warning=FALSE, message=FALSE, eval=FALSE}
+DE_within_each_cluster(obj = mouse.annotated,
+                       outDir = paste0(out, "DEGs/DEG_tables"),
+                       clusterCol = "Azimuth_L1_predictions",
+                       groupCol = "group",
+                       group1 = "RRP",
+                       group2 = "HD")
+gc()
+```
+
+## RRP_F vs HD_F
+```{r RRP_F_vs_HD_F, warning=FALSE, message=FALSE, eval=FALSE}
+DE_within_each_cluster(obj = mouse.annotated,
+                       outDir = paste0(out, "DEGs/DEG_tables"),
+                       clusterCol = "Azimuth_L1_predictions",
+                       groupCol = "group2",
+                       group1 = "RRP_F",
+                       group2 = "HD_F")
+gc()
+```
+
+## RRP_M vs HD_M
+```{r RRP_M_vs_HD_M, warning=FALSE, message=FALSE, eval=FALSE}
+DE_within_each_cluster(obj = mouse.annotated,
+                       outDir = paste0(out, "DEGs/DEG_tables"),
+                       clusterCol = "Azimuth_L1_predictions",
+                       groupCol = "group2",
+                       group1 = "RRP_F",
+                       group2 = "HD_F")
+gc()
+```
+
+## Compare DEGs
+```{r compare_degs, eval=FALSE}
+# get file paths
+files <- list.files(paste0(out, "DEGs/DEG_tables"))
+files <- files[grepl("_DEGs.tsv", files)]
+
+# init data.frame
+deg.df <- data.frame()
+
+# loop through files
+for (i in files) {
+  
+  # read table
+  df <- read.table(paste0(out, "DEGs/DEG_tables/", i),
+                   sep = "\t", 
+                   header = TRUE)
+  
+  # filter
+  df <- df[df$p_val_adj < 0.05,]
+  
+  # add direction column
+  comparisonName <- gsub("_DEGs.tsv", "", i)
+  direction <- df$avg_log2FC > 0
+  direction <- gsub(TRUE, paste0(comparisonName, "_up"), direction)
+  direction <- gsub(FALSE, paste0(comparisonName, "_down"), direction)
+  df$direction <- direction
+  
+  # reformat table
+  df <- df %>% 
+    dplyr::count(cluster, direction) %>%
+    tidyr::spread(cluster, n)
+  
+  # add to master table
+  deg.df <- smartbind(deg.df, df)
+}
+
+# reformat
+deg.df[is.na(deg.df)] <- 0
+rownames(deg.df) <- deg.df$direction
+deg.df$direction <- NULL
+```
+
+```{r save_deg_comparison, echo=FALSE, eval=FALSE}
+# save
+write.table(df, 
+            paste0(out, "DEGs/DEG_tables/DEG_comparison_FDRq_0.05_LFC_0.00.tsv"),
+            sep = "\t", quote = FALSE, row.names = TRUE)
+```
+
+## DEG heatmap
+```{r deg_heatmap}
+# set heatmap colors and names
+paletteLength <- 100
+myColor <- colorRampPalette(c("white","#f0eb9e","darkgreen"))(paletteLength)
+
+# save
+path <- paste0(out, "DEGs/DEG_tables/DEG_comparison_heatmap_FDRq_0.05_LFC_0.00.pdf")
+pdf(path, width = 10, height = 6)
+
+# plot
+pheatmap::pheatmap(deg.df,
+                   main = "FDRq < 0.05, |LFC| > 0",
+                   treeheight_row = 0,
+                   treeheight_col = 0,
+                   color = myColor,
+                   cluster_rows = FALSE,
+                   #annotation_row = meta,
+                   #annotation_colors = ann_colors,
+                   display_numbers = round(deg.df, digits = 0),
+                   fontsize_number = 12,
+                   number_color = "black")
+```
+
+# DEG plots and tables
+## Volcano
+```{r volcano_plot, message=FALSE, eval=FALSE}
+variables <- c("RRP_F_vs_HD_F","RRP_M_vs_HD_M","RRP_vs_HD")
+all_clusters <- unique(mouse.annotated$Azimuth_L1_predictions)
+prefix <- paste0(out, "DEGs/")
+
+for (i in variables) {
+  
+  # read DEG file
+  treatment_vs_control <- read.delim(paste0(prefix,"DEG_tables/",i,"_DEGs.tsv"))
+  
+  # assign colors
+  color_values <- vector()
+  max <- nrow(treatment_vs_control)
+  for(row in 1:max){
+    if (treatment_vs_control$p_val_adj[row] < 0.05){
+      if (treatment_vs_control$avg_log2FC [row] > 0){
+        color_values <- c(color_values, 1) # 1 when logFC > 0 and FDRq < 0.05
+      }
+      else if (treatment_vs_control$avg_log2FC[row] < 0){
+        color_values <- c(color_values, 2) # 2 when logFC < 0 and FDRq < 0.05
+      }
+    }
+    else{
+      color_values <- c(color_values, 3) # 3 when FDRq >= 0.05
+    }
+  }
+  treatment_vs_control$color_adjpval_0.05 <- factor(color_values)
+  
+  # loop through clusters
+  for (j in all_clusters) {
+    
+    # subset cluster
+    data <- subset(treatment_vs_control, cluster == j)
+    
+    # plot only if there are DEGs with p_val_adj < 0.05
+    num <- subset(data, p_val_adj < 0.05)
+    num <- nrow(num)
+    if(num != 0) {
+        
+      # subset genes to label
+      up <- data[data$color_adjpval_0.05 == 1,]
+      up.sig <- up[order(up$p_val_adj),][1:15,]
+      up.lfc <- up[order(up$avg_log2FC, decreasing = TRUE),][1:15,]
+      up30 <- rbind(up.sig,up.lfc)
+      up30 <- unique(up30)
+      up30 <- up30[rowSums(is.na(up30)) != ncol(up30), ]
+      down <- data[data$color_adjpval_0.05 == 2,]
+      down.sig <- down[order(down$p_val_adj),][1:15,]
+      down.lfc <- down[order(down$avg_log2FC, decreasing = FALSE),][1:15,]
+      down30 <- rbind(down.sig,down.lfc)
+      down30 <- unique(down30)
+      down30 <- down30[rowSums(is.na(down30)) != ncol(down30), ]
+      
+      # set manual colors
+      if (!1 %in% unique(data$color_adjpval_0.05)) {
+        my_colors <- c("blue","gray")
+      } else if (!2 %in% unique(data$color_adjpval_0.05)) {
+        my_colors <- c("red","gray")
+      } else if (!1 %in% unique(data$color_adjpval_0.05) && !2 %in% unique(data$color_adjpval_0.05)) {
+        my_colors <- c("gray")
+      } else {
+        my_colors <- c("red","blue","gray")
+      }
+      
+      # set significance threshold
+      hadjpval <- (-log10(max(
+        data$p_val[data$p_val_adj < 0.05], 
+        na.rm=TRUE)))
+
+      # plot
+      p <-
+        ggplot(data = data, 
+               aes(x = avg_log2FC,  # x-axis is logFC
+                   y = -log10(p_val),  # y-axis will be -log10 of P.Value
+                   color = color_adjpval_0.05)) +  # color is based on factored color column
+        geom_point(alpha = 0.8, size = 2) +  # create scatterplot, alpha makes points transparent
+        theme_bw() +  # set color theme
+        theme(legend.position = "none") +  # no legend
+        scale_color_manual(values = my_colors) +  # set factor colors
+        labs(
+          title = "", # no main title
+          x = expression(log[2](FC)), # x-axis title
+          y = expression(-log[10] ~ "(" ~ italic("p") ~ "-value)") # y-axis title
+        ) +
+        theme(axis.title.x = element_text(size = 10),
+              axis.text.x = element_text(size = 10)) +
+        theme(axis.title.y = element_text(size = 10),
+              axis.text.y = element_text(size = 10)) +
+        geom_hline(yintercept = hadjpval,  #  horizontal line
+                           colour = "#000000",
+                           linetype = "dashed") +
+        ggtitle(paste0(j,"\n",i,", p_val_adj < 0.05")) +
+        geom_text_repel(data = up30,
+                        aes(x = avg_log2FC, y= -log10(p_val), label = gene), 
+                        color = "maroon", 
+                        fontface="italic",
+                        max.overlaps = getOption("ggrepel.max.overlaps", default = 30)
+                        ) +
+        geom_text_repel(data = down30,
+                        aes(x = avg_log2FC, y= -log10(p_val), label = gene), 
+                        color = "navyblue", 
+                        fontface="italic",
+                        max.overlaps = getOption("ggrepel.max.overlaps", default = 30)
+                        )
+      p
+      
+      # save
+      clus <- j
+      clus <- gsub(" ","_",clus)
+      path <- paste0(prefix,"volcano/",i,"/",i,"_",clus,"_volcano.pdf")
+      pdf(paste(path,".pdf"), height = 8, width = 8)
+      print(p)
+      dev.off()
+      
+      print(paste("i =",i,", j =",j))
+      
+    }
+  } # end loop through clusters
+} # end loop through variables
+```
+
+## Metascape input
+```{r}
+# set variables
+thresh <- 0.05
+
+# get file list
+files <- list.files(paste0(out, "DEGs/DEG_tables/"))
+keep <- grep("_DEGs.tsv", files)
+files <- files[keep]
+files <- paste0(out, "DEGs/DEG_tables/", files)
+
+# get cell types
+cell_types <- levels(mouse.annotated$Azimuth_L1_predictions)
+
+# loop through files
+for (i in 1:length(files)) {
+  
+  # read table
+  data <- read.table(files[i], header = TRUE, sep = "\t")
+  data <- data[data$p_val_adj < thresh,]
+  up.df <- data[data$avg_log2FC > 0,]
+  down.df <- data[data$avg_log2FC < 0,]
+  
+  # loop through cluster
+  for (j in cell_types) {
+    
+    # subset based on cluster
+    print(paste0(i, ": ", j))
+    up <- up.df[up.df$cluster == j,]
+    up <- up$gene
+    down <- down.df[down.df$cluster == j,]
+    down <- down$gene
+    
+    # file name
+    clus <- j
+    clus <- gsub(" ","_",clus)
+    file <- gsub(paste0(out, "DEGs/DEG_tables/"), "", files[i])
+    file <- gsub("_DEGs.tsv", "", file)
+    file <- paste0(out, "DEGs/metascape_input/", file, "/", clus)
+     
+    # save
+    if(length(up) > 10) {
+      write.table(x = up,
+                  file = paste0(file, "_up_FDRq_", format(thresh, nsmall = 2), ".tsv"),
+                  quote = FALSE,
+                  row.names = FALSE,
+                  col.names = FALSE)      
+    }
+    if (length(down) > 10) {
+       write.table(x = down,
+                file = paste0(file, "_down_FDRq_", format(thresh, nsmall = 2), ".tsv"),
+                quote = FALSE,
+                row.names = FALSE,
+                col.names = FALSE)   
+    }
+  } # end j for loop
+} # end i for loop
+```
+
+## Upset plots
+### Function
+```{r upset_function}
+get_exclusive_intersection_genes <- function(upset_data, list_input) {
+  # Initialize a list to store the results
+  results <- list()
+  
+  # Get the names of the columns (gene sets)
+  set_names <- colnames(upset_data)
+  
+  # For each row of the UpSet matrix, extract the exclusive intersection
+  for (i in 1:nrow(upset_data)) {
+    # Check which sets (columns) are "active" (i.e., 1) for the current row
+    active_sets <- set_names[upset_data[i, ] == 1]
+    
+    if (length(active_sets) > 0) {
+      # Find the intersection of genes in the active sets
+      intersected_genes <- Reduce(intersect, list_input[active_sets])
+      
+      # Find genes that are present in any of the other sets (not part of this combination)
+      other_sets <- set_names[upset_data[i, ] == 0]
+      other_genes <- Reduce(union, list_input[other_sets])
+      
+      # Subtract the genes that are in the other sets to make the intersection exclusive
+      exclusive_genes <- setdiff(intersected_genes, other_genes)
+      
+      # Create a label for the current intersection (e.g., "Set1 & Set2")
+      intersection_label <- paste(active_sets, collapse = " & ")
+      
+      # Store the number of genes and the exclusive gene list
+      results[[intersection_label]] <- list(
+        total_genes = length(exclusive_genes),
+        gene_list = paste(exclusive_genes, collapse = ", ")
+      )
+    }
+  }
+  
+  return(results)
+}
+```
+
+### RRP vs HD sex specifc
+```{r E4C_vs_E3C_tables}
+# set thresh
+thresh <- 0.05
+
+# read tables
+prefix <- paste0(out, "DEGs/DEG_tables/")
+RRP_F_vs_HD_F <- read.table(paste0(prefix,"RRP_F_vs_HD_F_DEGs.tsv"),
+                            sep = "\t",
+                            header = TRUE)
+RRP_M_vs_HD_M <- read.table(paste0(prefix,"RRP_M_vs_HD_M_DEGs.tsv"),
+                            sep = "\t",
+                            header = TRUE)
+
+# filter
+RRP_F_vs_HD_F <- RRP_F_vs_HD_F[RRP_F_vs_HD_F$p_val_adj < thresh,]
+RRP_M_vs_HD_M <- RRP_M_vs_HD_M[RRP_M_vs_HD_M$p_val_adj < thresh,]
+```
+
+```{r upset, eval=FALSE}
+# loop through cell types
+clusters <- unique(c(RRP_F_vs_HD_F$cluster, RRP_M_vs_HD_M$cluster))
+
+for (i in clusters) {
+  
+  # skip cluster with not enough DEGs
+  #if (i == "cluster") {
+  #  next
+  #}
+  
+  # Subset df by cluster
+  RRP_F_vs_HD_F_ct <- RRP_F_vs_HD_F[RRP_F_vs_HD_F$cluster == i,]
+  RRP_M_vs_HD_M_ct <- RRP_M_vs_HD_M[RRP_M_vs_HD_M$cluster == i,]
+  
+  # Subset by log2FC
+  RRP_F_vs_HD_F_ct_up <- RRP_F_vs_HD_F_ct[RRP_F_vs_HD_F_ct$avg_log2FC > 0,][,"gene"]
+  RRP_M_vs_HD_M_ct_up <- RRP_M_vs_HD_M_ct[RRP_M_vs_HD_M_ct$avg_log2FC > 0,][,"gene"]
+  RRP_F_vs_HD_F_ct_down <- RRP_F_vs_HD_F_ct[RRP_F_vs_HD_F_ct$avg_log2FC < 0,][,"gene"]
+  RRP_M_vs_HD_M_ct_down <- RRP_M_vs_HD_M_ct[RRP_M_vs_HD_M_ct$avg_log2FC < 0,][,"gene"]
+  axis_max <- max(length(RRP_F_vs_HD_F_ct_up), length(RRP_M_vs_HD_M_ct_up),
+                  length(RRP_F_vs_HD_F_ct_down), length(RRP_M_vs_HD_M_ct_down)) + 300
+  axis_max <- ceiling(axis_max / 100) * 100
+ 
+  # format in a list
+  list_input <- list(
+    "E4CM vs E3CM Down-regulated" = RRP_M_vs_HD_M_ct_down,
+    "E4CF vs E3CF Down-regulated" = RRP_F_vs_HD_F_ct_down,
+    "E4CM vs E3CM Up-regulated" = RRP_M_vs_HD_M_ct_up,
+    "E4CF vs E3CF Up-regulated" = RRP_F_vs_HD_F_ct_up
+  )
+  data <- UpSetR::fromList(list_input)
+  
+  # You will specify the male and female groups by their group number
+  # Print this to help assign shapes/colors below
+  group_mapping <- data.frame(
+    Group_Number = 1:4,  # Group numbers (1-8)
+    Gene_Set_Name = sort(colnames(data))  # Sorted gene set names
+  )
+  
+  # Assign shapes based on group numbers
+  male_groups <- c("3","4")  # Male group numbers
+  female_groups <- c("1","2")  # Female group numbers
+  
+  # Assign colors and shapes based on specific group numbers
+  upregulated_groups <- c("2","4")
+  downregulated_groups <- c("1","3")
+  
+  # Create the basic UpSet plot (no dynamic colors or shapes) to extract n_points
+  dummy_upset <- ComplexUpset::upset(
+    data, 
+    colnames(data),  # Use column names (gene sets)
+    set_sizes = ComplexUpset::upset_set_size(),  # Display set sizes
+    sort_sets = FALSE,
+    
+    # Plot the intersection matrix with points (default shapes)
+    matrix = ComplexUpset::intersection_matrix(
+      ggplot2::geom_point(size = 3)  # Simple points without dynamic aesthetics
+    )
+  )
+  
+  # Ensure n_points matches the actual data
+  n_points <- nrow(dummy_upset$data)
+  
+  # Create empty vectors for colors and shapes
+  color_vector <- rep(NA, n_points)  # To store colors
+  shape_vector <- rep(NA, n_points)  # To store shapes
+  
+  # Assign shapes and colors based on group numbers
+  for (j in 1:n_points) {
+    group_value <- as.character(dummy_upset$data$group[j])
+    
+    # Assign shapes
+    if (group_value %in% male_groups) {
+      shape_vector[j] <- 22  # Filled square for Male comparisons
+    } else if (group_value %in% female_groups) {
+      shape_vector[j] <- 21  # Circle for Female comparisons
+    }
+    
+    # Assign colors based on group numbers, only if the point is involved in an intersection
+    if (dummy_upset$data$value[j]) {  # If the point is part of an intersection
+      if (group_value %in% upregulated_groups) {
+        color_vector[j] <- "red"  # Red for Up-regulated
+      } else if (group_value %in% downregulated_groups) {
+        color_vector[j] <- "blue"  # Blue for Down-regulated
+      }
+    } else {
+      color_vector[j] <- NA  # No fill for points not involved in intersections
+    }
+  }
+  
+  # Ensure both vectors are of correct length
+  if (length(shape_vector) != n_points || length(color_vector) != n_points) {
+    stop("Error: shape_vector or color_vector length does not match the number of plotted points.")
+  }
+  
+  # Reintroduce dynamic fill color for filled shapes
+  upset_gene <- ComplexUpset::upset(
+    data, 
+    colnames(data),
+    set_sizes = (
+      ComplexUpset::upset_set_size() +
+      geom_text(aes(label = ..count..), hjust = 1.1, stat = 'count') +
+      expand_limits(y = axis_max)
+    ),
+    
+    # Prevent automatic sorting of sets
+    sort_sets = FALSE,
+    
+    matrix = ComplexUpset::intersection_matrix(
+      ggplot2::geom_point(
+        ggplot2::aes(shape = factor(shape_vector), fill = color_vector),  # Fill shapes with dynamic colors
+        size = 3,
+        stroke = 0.45  # Keeps the outline black
+      )
+    ) + ggplot2::scale_shape_manual(
+      name = "Sex",
+      labels = c("Male", "Female"),  # Legend labels
+      values = c(21, 22) # Circle=21, Filled square=22
+      ) + ggplot2::scale_fill_identity(na.translate = FALSE),  # Use the exact colors in color_vector and remove NA fill
+    
+      base_annotations = list(
+      'Intersection size' = (
+        intersection_size(bar_number_threshold = 1, width = 0.5) +
+        scale_y_continuous(expand = expansion(mult = c(0, 0.05)), limits = c(0, axis_max)) +
+        theme(
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.line = element_line(colour = 'black')
+        )
+      )
+    ),
+  )
+  
+  # give title
+  upset_gene <- upset_gene + ggtitle(paste0(i,", adj_p_val < 0.05"))
+  
+  # remove legend
+  upset_gene <- upset_gene + theme(legend.position = "None")
+  
+  # save
+  i <- gsub(" ","_",i)
+  pdf(paste0(out, "DEGs/upset/", tolower(i), "_upset.pdf"), height = 6, width = 12)
+  print(upset_gene)
+  dev.off()
+}
+```

@@ -1,12 +1,13 @@
 #!/bin/sh
+#SBATCH --partition=gpu-a100        # Explicitly set GPU partition
+#SBATCH --nodes=1                   # Requests 1 compute node
+#SBATCH --ntasks=1                  # Requests 1 task/process
+#SBATCH --gres=gpu:1                # Requests 1 GPU
+#SBATCH --time=8:00:00              # Maximum time the job is allowed to run, HH:MM:SS
 #SBATCH --job-name=cellbender       # Name of the job
-#SBATCH --mem=50G                   # Amount of memory allocated for the job
-#SBATCH --output logs/%x.%j.stdout  # File for standard output
-#SBATCH --error=logs/%x.%j.stderr   # File for standard error output
-#SBATCH --partition=gpu             # Specifies the partition (queue)
-#SBATCH --gres=gpu:1                # Specify GPU
-#SBATCH --cpus-per-task=16          # Number of CPU cores per task
-#SBATCH --time=24:00:00             # Maximum time the job is allowed to run, HH:MM:SS
+#SBATCH --mem=50G                   # Memory allocation
+#SBATCH --output=logs/%x.%j.stdout  # Stdout log file
+#SBATCH --error=logs/%x.%j.stderr   # Stderr log file
 
 # source settings
 source $HOME/.bash_profile
@@ -14,6 +15,9 @@ source ../../refs/.env
 
 # activate conda environment
 conda activate cellbender
+
+# check gpu
+nvidia-smi
 
 # cellbender version
 cellbender --version

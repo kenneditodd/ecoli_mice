@@ -22,10 +22,9 @@ knitr::opts_knit$set(root.dir = ".")
 ## Load libraries
 ```{r libraries, message=FALSE, warnings=FALSE}
 # load libraries
-library("SeuratObject", lib.loc = "/home/ktodd/R/rstudio-4.3.0-4-with_modules.sif/libs")
 library(Azimuth)     # RunAzimuth()
 library(cowplot)     # plot_grid()
-library(dotenv)
+library(dotenv)      # load_dot_env()
 library(dplyr)       # left_join()
 library(ggplot2)     # ggplot()
 library(gridExtra)   # grid.arrange()
@@ -641,11 +640,6 @@ dev.off()
 remove(v1,v2,v3,v4,v5,v6,v7,v8,v9)
 ```
 
-```{r}
-# save seurat object
-saveRDS(mouse.unannotated, "../../rObjects/seurat_obj_annotated.rds")
-```
-
 # Assign identities
 ```{r assign_identities}
 new_cluster_names <- c(
@@ -717,6 +711,49 @@ dev.off()
 remove(u1,u2)
 ```
 
+# Cell Bender
+## Add info
+```{r cellbender_barcodes}
+barcodes <- readRDS("../../rObjects/cellbender_passed_barcodes.rds")
+keep <- colnames(mouse.annotated) %in% barcodes
+mouse.annotated$cellbender_keep <- keep
+
+u3 <- DimPlot(mouse.annotated,
+             group.by = "cellbender_keep",
+             label = TRUE,
+             dims = c(1,2),
+             raster = FALSE,
+             cols = c("red","lightyellow"),
+             shuffle = TRUE)
+u3
+
+u4 <- DimPlot(mouse.annotated,
+             group.by = "cellbender_keep",
+             label = TRUE,
+             dims = c(2,3),
+             raster = FALSE,
+             cols = c("red","lightyellow"),
+             shuffle = TRUE)
+u4
+```
+
+```{r save_cellbender_keep, eval=FALSE, echo=FALSE}
+path <- paste0(out, "clustering_QC/cellbender_keep_umap_dim1&2.pdf")
+pdf(path, width = 8, height = 6)
+u3
+dev.off()
+
+path <- paste0(out, "clustering_QC/cellbender_keep_umap_dim2&3.pdf")
+pdf(path, width = 8, height = 6)
+u4
+dev.off()
+```
+
+```{r save_annotated_obj, echo=FALSE, eval=FALSE}
+# save seurat object
+saveRDS(mouse.annotated, "../../rObjects/seurat_obj_annotated.rds")
+```
+
 # Shiny App
 - scDRcell is the function used to plot the first UMAP
 - inpConf is an argument of scDRcell, inpConf = sc1conf
@@ -733,7 +770,7 @@ DefaultAssay(shiny.obj) <- "RNA"
 
 # create config
 names <- colnames(shiny.obj@meta.data)
-names <- names[c(32,33,2:31)]
+names <- names[c(32,33,2:31,34)]
 sc.config <- createConfig(obj = shiny.obj,
                           meta.to.include = names)
 

@@ -1,10 +1,11 @@
 ---
-title: "PLX5622 Diet Mice scRNAseq"
-subtitle: "QC and DE"
+title: "E. coli Mice scRNAseq"
+subtitle: "Postclustering QC"
 author: "Kennedi Todd"
-date: "11/21/2024"
+date: "01/28/2025"
 output:
   html_document:
+    code_folding: hide
     theme: cerulean
     toc: true
     toc_float: true
@@ -24,7 +25,6 @@ knitr::opts_knit$set(root.dir = ".")
 library(ComplexUpset) # instersection_size()
 library(dplyr)        # ungroup()
 library(ggrepel)      # geom_text_repel()
-#library(ggtree)       # BuildClusterTree()
 library(gridExtra)    # grid.arrange()
 library(gtools)       # smartbind()
 library(parallel)     # detectCores()
@@ -38,7 +38,7 @@ library(UpSetR)       # fromList()
 ## Variables and functions
 ```{r set_variables_and_functions}
 # variables
-out <- "../../results/all_samples/without_integration"
+out <- "../../results/without_integration/"
 
 # single cell functions
 files <- list.files("../../functions", full.names = TRUE)
@@ -48,97 +48,116 @@ invisible(lapply(files, source))
 ## Load data
 ```{r read_annotated_obj}
 mouse.annotated <- readRDS("../../rObjects/seurat_obj_annotated.rds")
-
-mouse.annotated$group <- str_match(mouse.annotated$donor, "([HDRRP]+).+")[,2]
-mouse.annotated$group2 <- paste0(mouse.annotated$group, "_", mouse.annotated$sex)
 ```
 
 # QC
 ## Sex check
-```{r}
-VlnPlot(object = mouse.annotated,
-        group.by = "sample",
-        features = c("XIST","UTY"))
+```{r sex_check}
+dot <- DotPlot(mouse.annotated,
+               features = c("Uty","Xist"),
+               group.by = "sample")
+dot
+```
+
+```{r save_sex_check, echo=FALSE, eval=FALSE}
+pdf(paste0(out, "clustering_QC/sex_check_dot_plot.pdf"), width = 6, height = 16)
+dot
+dev.off()
 ```
 
 ## 2D UMAP
 ```{r annotated_umap}
 # set colors
-cluster_colors <- c("pink","gray","red","gold","chartreuse2",
-                       "cornflowerblue","chocolate4","black")
+cluster_colors <- c("firebrick2", "gold", "chartreuse2", "darkgreen", "cyan",
+                    "steelblue", "blue", "violet", "purple3","gray",
+                    "chocolate4", "black")
 
 # umap
-Idents(mouse.annotated) <- "Azimuth_L1_predictions"
+Idents(mouse.annotated) <- "annotated_clusters"
 umap <- DimPlot(object = mouse.annotated, 
         reduction = "umap",
-        group.by = "Azimuth_L1_predictions",
+        group.by = "annotated_clusters",
         cols = cluster_colors)
 umap
 ```
 
-## Cluster markers
-
 ## Split UMAP
 ```{r split_umaps}
-# group1
+# group
 umap1 <- DimPlot(object = mouse.annotated, 
-                 group.by = "Azimuth_L1_predictions",
+                 group.by = "annotated_clusters",
                  reduction = "umap",
                  split.by = "group",
+                 ncol = 2,
                  cols = cluster_colors)
 umap1
 
 # group2
 umap2 <- DimPlot(object = mouse.annotated, 
-                 group.by = "Azimuth_L1_predictions",
+                 group.by = "annotated_clusters",
                  reduction = "umap",
                  split.by = "group2",
-                 ncol = 2,
+                 ncol = 4,
                  cols = cluster_colors)
 umap2
 
 # sex
 umap3 <- DimPlot(object = mouse.annotated, 
-                 group.by = "Azimuth_L1_predictions",
+                 group.by = "annotated_clusters",
                  reduction = "umap",
                  split.by = "sex",
                  cols = cluster_colors)
 umap3
 
-# sample
+# treatment
 umap4 <- DimPlot(object = mouse.annotated, 
-                 group.by = "Azimuth_L1_predictions",
+                 group.by = "annotated_clusters",
                  reduction = "umap",
-                 split.by = "sample",
-                 ncol = 4,
+                 split.by = "treatment",
                  cols = cluster_colors)
 umap4
 
-# mito.factor
+# mito_factor
 umap5 <- DimPlot(object = mouse.annotated, 
-                 group.by = "Azimuth_L1_predictions",
+                 group.by = "annotated_clusters",
                  reduction = "umap",
-                 split.by = "mito.factor",
+                 split.by = "mito_factor",
                  cols = cluster_colors,
                  ncol = 2)
 umap5
 
 # phase
 umap6 <- DimPlot(object = mouse.annotated, 
-                 group.by = "Azimuth_L1_predictions",
+                 group.by = "annotated_clusters",
                  reduction = "umap",
                  split.by = "phase",
                  cols = cluster_colors)
 umap6
+
+# timepoint
+umap7 <- DimPlot(object = mouse.annotated, 
+                 group.by = "annotated_clusters",
+                 reduction = "umap",
+                 split.by = "timepoint_days",
+                 cols = cluster_colors)
+umap7
+
+# age
+umap8 <- DimPlot(object = mouse.annotated, 
+                 group.by = "annotated_clusters",
+                 reduction = "umap",
+                 split.by = "age",
+                 cols = cluster_colors)
+umap8
 ```
 
 ```{r save_split_umap, echo=FALSE, eval=FALSE}
 path <- paste0(out, "clustering_QC/")
-pdf(paste0(path, "umap_split_group.pdf"), width = 8, height = 4)
+pdf(paste0(path, "umap_split_group.pdf"), width = 8, height = 10)
 umap1
 dev.off()
 
-pdf(paste0(path, "umap_split_group2.pdf"), width = 8, height = 6)
+pdf(paste0(path, "umap_split_group2.pdf"), width = 14, height = 10)
 umap2
 dev.off()
 
@@ -146,7 +165,7 @@ pdf(paste0(path, "umap_split_sex.pdf"), width = 8, height = 4)
 umap3
 dev.off()
 
-pdf(paste0(path, "umap_split_sample.pdf"), width = 10, height = 10)
+pdf(paste0(path, "umap_split_treatment.pdf"), width = 8, height = 4)
 umap4
 dev.off()
 
@@ -156,6 +175,14 @@ dev.off()
 
 pdf(paste0(path, "umap_split_cell_cycle_phase.pdf"), width = 10, height = 4)
 umap6
+dev.off()
+
+pdf(paste0(path, "umap_split_timepoint.pdf"), width = 8, height = 4)
+umap7
+dev.off()
+
+pdf(paste0(path, "umap_split_age.pdf"), width = 8, height = 4)
+umap8
 dev.off()
 
 remove(umap1,umap2,umap3,umap4,umap5,umap6,umap7,umap8)
@@ -237,14 +264,28 @@ remove(f1,f2,f3,f4,f5,f6)
 
 ## Percent cells per cluster
 ```{r percent_cells}
-# sex
-b2 <- mouse.annotated@meta.data %>%
-  group_by(Azimuth_L1_predictions, sex) %>%
+# timepoint
+b1 <- mouse.annotated@meta.data %>%
+  group_by(annotated_clusters, timepoint_days) %>%
   dplyr::count() %>%
-  group_by(Azimuth_L1_predictions) %>%
+  group_by(annotated_clusters) %>%
   dplyr::mutate(percent = 100*n/sum(n)) %>%
   ungroup() %>%
-  ggplot(aes(x=Azimuth_L1_predictions,y=percent, fill=sex)) +
+  ggplot(aes(x=annotated_clusters,y=percent, fill=timepoint_days)) +
+  theme_classic() +
+  geom_col() +
+  ggtitle("Percentage of time point per cluster") +
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1))
+b1
+
+# sex
+b2 <- mouse.annotated@meta.data %>%
+  group_by(annotated_clusters, sex) %>%
+  dplyr::count() %>%
+  group_by(annotated_clusters) %>%
+  dplyr::mutate(percent = 100*n/sum(n)) %>%
+  ungroup() %>%
+  ggplot(aes(x=annotated_clusters,y=percent, fill=sex)) +
   theme_classic() +
   geom_col() +
   ggtitle("Percentage of sex per cluster") +
@@ -253,12 +294,12 @@ b2
 
 # sample
 b3 <- mouse.annotated@meta.data %>%
-  group_by(Azimuth_L1_predictions, sample) %>%
+  group_by(annotated_clusters, sample) %>%
   dplyr::count() %>%
-  group_by(Azimuth_L1_predictions) %>%
+  group_by(annotated_clusters) %>%
   dplyr::mutate(percent = 100*n/sum(n)) %>%
   ungroup() %>%
-  ggplot(aes(x=Azimuth_L1_predictions,y=percent, fill=sample)) +
+  ggplot(aes(x=annotated_clusters,y=percent, fill=sample)) +
   theme_classic() +
   geom_col() +
   ggtitle("Percentage of sample per cluster") +
@@ -267,12 +308,12 @@ b3
 
 # phase
 b4 <- mouse.annotated@meta.data %>%
-  group_by(Azimuth_L1_predictions, phase) %>%
+  group_by(annotated_clusters, phase) %>%
   dplyr::count() %>%
-  group_by(Azimuth_L1_predictions) %>%
+  group_by(annotated_clusters) %>%
   dplyr::mutate(percent = 100*n/sum(n)) %>%
   ungroup() %>%
-  ggplot(aes(x=Azimuth_L1_predictions,y=percent, fill=phase)) +
+  ggplot(aes(x=annotated_clusters,y=percent, fill=phase)) +
   theme_classic() +
   geom_col() +
   ggtitle("Percentage of phase per cluster") +
@@ -281,26 +322,26 @@ b4
 
 # mito.factor
 b5 <- mouse.annotated@meta.data %>%
-  group_by(Azimuth_L1_predictions, mito.factor) %>%
+  group_by(annotated_clusters, mito_factor) %>%
   dplyr::count() %>%
-  group_by(Azimuth_L1_predictions) %>%
+  group_by(annotated_clusters) %>%
   dplyr::mutate(percent = 100*n/sum(n)) %>%
   ungroup() %>%
-  ggplot(aes(x=Azimuth_L1_predictions,y=percent, fill=mito.factor)) +
+  ggplot(aes(x=annotated_clusters,y=percent, fill=mito_factor)) +
   theme_classic() +
   geom_col() +
-  ggtitle("Percentage of mito.factor per cluster") +
+  ggtitle("Percentage of mito factor per cluster") +
   theme(axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1))
 b5
 
 # group
 b6 <- mouse.annotated@meta.data %>%
-  group_by(Azimuth_L1_predictions, group) %>%
+  group_by(annotated_clusters, group) %>%
   dplyr::count() %>%
-  group_by(Azimuth_L1_predictions) %>%
+  group_by(annotated_clusters) %>%
   dplyr::mutate(percent = 100*n/sum(n)) %>%
   ungroup() %>%
-  ggplot(aes(x=Azimuth_L1_predictions,y=percent, fill=group)) +
+  ggplot(aes(x=annotated_clusters,y=percent, fill=group)) +
   theme_classic() +
   geom_col() +
   ggtitle("Percentage of group per cluster") +
@@ -309,27 +350,47 @@ b6
 
 # group2
 b7 <- mouse.annotated@meta.data %>%
-  group_by(Azimuth_L1_predictions, group2) %>%
+  group_by(annotated_clusters, group2) %>%
   dplyr::count() %>%
-  group_by(Azimuth_L1_predictions) %>%
+  group_by(annotated_clusters) %>%
   dplyr::mutate(percent = 100*n/sum(n)) %>%
   ungroup() %>%
-  ggplot(aes(x=Azimuth_L1_predictions,y=percent, fill=group2)) +
+  ggplot(aes(x=annotated_clusters,y=percent, fill=group2)) +
   theme_classic() +
   geom_col() +
-  ggtitle("Percentage of group per cluster") +
+  ggtitle("Percentage of group2 per cluster") +
   theme(axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1))
 b7
+
+# age
+b8 <- mouse.annotated@meta.data %>%
+  group_by(annotated_clusters, age) %>%
+  dplyr::count() %>%
+  group_by(annotated_clusters) %>%
+  dplyr::mutate(percent = 100*n/sum(n)) %>%
+  ungroup() %>%
+  ggplot(aes(x=annotated_clusters,y=percent, fill=age)) +
+  theme_classic() +
+  geom_col() +
+  ggtitle("Percentage of age per cluster") +
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1))
+b8
 ```
 
 ```{r save_percent_cells,echo=FALSE,eval=FALSE}
+# save
+path <- paste0(out, "clustering_QC/percent_")
+pdf(paste0(path, "timepoint_per_cluster.pdf"), width = 8, height = 6)
+b1
+dev.off()
+
 # save
 pdf(paste0(path, "sex_per_cluster.pdf"), width = 8, height = 6)
 b2
 dev.off()
 
 # save
-pdf(paste0(path, "sample_per_cluster.pdf"), width = 8, height = 6)
+pdf(paste0(path, "sample_per_cluster.pdf"), width = 8, height = 8)
 b3
 dev.off()
 
@@ -353,36 +414,13 @@ pdf(paste0(path, "group2_per_cluster.pdf"), width = 8, height = 6)
 b7
 dev.off()
 
-# cleanup
-remove(b2,b3,b4,b5,b6,b7)
-```
-
-## Cluster tree
-```{r cluster_tree_annotated, message=FALSE, warning=FALSE}
-Idents(mouse.annotated) <- mouse.annotated$Azimuth_L1_predictions
-mouse.annotated <- BuildClusterTree(object = mouse.annotated,
-                                     dims = 1:15,
-                                     reorder = FALSE,
-                                     reorder.numeric = FALSE)
-
-tree <- mouse.annotated@tools$BuildClusterTree
-tree$tip.label <- paste0(tree$tip.label)
-
-p <- ggtree::ggtree(tree, aes(x, y)) +
-  scale_y_reverse() +
-  ggtree::geom_tree() +
-  ggtree::theme_tree() +
-  ggtree::geom_tiplab(offset = 1) +
-  ggtree::geom_tippoint(color = cluster_colors[1:length(tree$tip.label)], shape = 16, size = 5) +
-  coord_cartesian(clip = 'off') +
-  theme(plot.margin = unit(c(0,2.5,0,0), 'cm'))
-p
-```
-
-```{r save_annotated_cluster_tree, echo=FALSE, eval=FALSE}
-pdf(paste0(out, "clustering_QC/cluster_tree_annotated.pdf"), width = 20, height = 10)
-p
+# save
+pdf(paste0(path, "age_per_cluster.pdf"), width = 8, height = 6)
+b8
 dev.off()
+
+# cleanup
+remove(b1,b2,b3,b4,b5,b6,b7,b8)
 ```
 
 ## Cells per sample
@@ -396,7 +434,7 @@ ncells <- ggplot(data, aes(x = sample, y = frequency, fill = sample)) +
   geom_text(aes(label = frequency), 
             position=position_dodge(width=0.9), 
             vjust=-0.25) +
-  scale_y_continuous(breaks = seq(0,25000, by = 5000), limits = c(0,25000)) +
+  scale_y_continuous(breaks = seq(0,12000, by = 2000), limits = c(0,12000)) +
   ggtitle("Filtered: cells per sample") +
   theme(legend.position =  "none") + 
   theme(axis.text.x = element_text(angle = 45, hjust=1))
@@ -404,14 +442,14 @@ ncells
 ```
 
 ```{r save_cells_per_sample, echo=FALSE, eval=FALSE}
-pdf(paste0(out, "clustering_QC/cells_per_sample.pdf"), width = 6, height = 4)
+pdf(paste0(out, "clustering_QC/cells_per_sample.pdf"), width = 18, height = 4)
 ncells
 dev.off()
 ```
 
 ## Cells per cluster
 ```{r cells_per_cluster}
-data <- as.data.frame(table(mouse.annotated$Azimuth_L1_predictions))
+data <- as.data.frame(table(mouse.annotated$annotated_clusters))
 colnames(data) <- c("cluster","frequency")
 
 ncells <- ggplot(data, aes(x = cluster, y = frequency, fill = cluster)) + 
@@ -420,7 +458,7 @@ ncells <- ggplot(data, aes(x = cluster, y = frequency, fill = cluster)) +
   geom_text(aes(label = frequency), 
             position=position_dodge(width=0.9), 
             vjust=-0.25) +
-  scale_y_continuous(breaks = seq(0,150000, by = 10000), limits = c(0,150000)) +
+  scale_y_continuous(breaks = seq(0,90000, by = 10000), limits = c(0,90000)) +
   ggtitle("Cells per Cluster") +
   theme(legend.position =  "none") + 
   theme(axis.text.x = element_text(angle = 45, hjust=1))
@@ -436,7 +474,7 @@ dev.off()
 ## Cells per cluster per sample
 ```{r cells_per_cluster_per_sample}
 # extract data
-data <- data.frame(cluster = mouse.annotated$Azimuth_L1_predictions,
+data <- data.frame(cluster = mouse.annotated$annotated_clusters,
                    sample = mouse.annotated$sample)
 data_summary <- data %>%
   group_by(cluster, sample) %>%
@@ -451,7 +489,7 @@ ncells <- ggplot(data_summary, aes(x = cluster, y = count, fill = sample)) +
   ggtitle("Frequency of Cells in Each Cluster with Sample Distribution") +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust=1)) +
-  ylim(c(0,150000))
+  ylim(c(0,90000))
 ncells
 
 # reformat for table output
@@ -460,7 +498,7 @@ data_summary <- data_summary %>% pivot_wider(names_from = cluster, values_from =
 
 ```{r save_cells_per_cluster_per_sample, echo=FALSE, eval=FALSE}
 pdf(paste0(out, "clustering_QC/cells_per_cluster_with_sample_distribution.pdf"),
-    width = 8, height = 6)
+    width = 12, height = 6)
 ncells
 dev.off()
 ```
@@ -468,7 +506,7 @@ dev.off()
 ## Cells per cluster per group
 ```{r cells_per_cluster_per_group}
 # extract data
-data <- data.frame(cluster = mouse.annotated$Azimuth_L1_predictions,
+data <- data.frame(cluster = mouse.annotated$annotated_clusters,
                    group = mouse.annotated$group)
 data_summary <- data %>%
   group_by(cluster, group) %>%
@@ -483,7 +521,7 @@ ncells <- ggplot(data_summary, aes(x = cluster, y = count, fill = group)) +
   ggtitle("Frequency of Cells in Each Cluster with Group Distribution") +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust=1)) +
-  ylim(c(0,150000))
+  ylim(c(0,90000))
 ncells
 
 # reformat for table output
@@ -502,11 +540,12 @@ write.table(data_summary,
 ```
 
 # Differential expression
-## RRP vs HD
+## Both sexes
+### E
 ```{r RRP_vs_HD, warning=FALSE, message=FALSE, eval=FALSE}
 DE_within_each_cluster(obj = mouse.annotated,
                        outDir = paste0(out, "DEGs/DEG_tables"),
-                       clusterCol = "Azimuth_L1_predictions",
+                       clusterCol = "annotated_clusters",
                        groupCol = "group",
                        group1 = "RRP",
                        group2 = "HD")
@@ -517,7 +556,7 @@ gc()
 ```{r RRP_F_vs_HD_F, warning=FALSE, message=FALSE, eval=FALSE}
 DE_within_each_cluster(obj = mouse.annotated,
                        outDir = paste0(out, "DEGs/DEG_tables"),
-                       clusterCol = "Azimuth_L1_predictions",
+                       clusterCol = "annotated_clusters",
                        groupCol = "group2",
                        group1 = "RRP_F",
                        group2 = "HD_F")
@@ -528,7 +567,7 @@ gc()
 ```{r RRP_M_vs_HD_M, warning=FALSE, message=FALSE, eval=FALSE}
 DE_within_each_cluster(obj = mouse.annotated,
                        outDir = paste0(out, "DEGs/DEG_tables"),
-                       clusterCol = "Azimuth_L1_predictions",
+                       clusterCol = "annotated_clusters",
                        groupCol = "group2",
                        group1 = "RRP_F",
                        group2 = "HD_F")
@@ -612,7 +651,7 @@ pheatmap::pheatmap(deg.df,
 ## Volcano
 ```{r volcano_plot, message=FALSE, eval=FALSE}
 variables <- c("RRP_F_vs_HD_F","RRP_M_vs_HD_M","RRP_vs_HD")
-all_clusters <- unique(mouse.annotated$Azimuth_L1_predictions)
+all_clusters <- unique(mouse.annotated$annotated_clusters)
 prefix <- paste0(out, "DEGs/")
 
 for (i in variables) {
@@ -743,7 +782,7 @@ files <- files[keep]
 files <- paste0(out, "DEGs/DEG_tables/", files)
 
 # get cell types
-cell_types <- levels(mouse.annotated$Azimuth_L1_predictions)
+cell_types <- levels(mouse.annotated$annotated_clusters)
 
 # loop through files
 for (i in 1:length(files)) {

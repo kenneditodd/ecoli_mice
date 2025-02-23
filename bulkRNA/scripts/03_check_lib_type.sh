@@ -22,8 +22,8 @@ cd $RAW_READS_DIR
 # Run Salmon quantification with validation of mappings
 salmon quant --libType A \
              --index $SALMON_INDEX \
-             --mates1 ? \
-             --mates2 ? \
+             --mates1 "${RAW_READS_DIR}/young_9_ms_t1_S9_L001_R1_001.fastq.gz" \
+             --mates2 "${RAW_READS_DIR}/young_9_ms_t1_S9_L001_R2_001.fastq.gz" \
              --output "${PROJECT_DIR}/refs/transcript_quant" \
              --threads 15 \
              --validateMappings

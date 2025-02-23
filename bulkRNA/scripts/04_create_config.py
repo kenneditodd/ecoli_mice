@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-
 import os
 import json
 
 # Set file paths
-sample_list_path = '../refs/sample_file_list.txt'
+sample_list_path = '../refs/sample_file_list.tsv'
 output_file_path = '../refs/config.json'
 
 # Initialize directories and sample data
@@ -34,9 +33,9 @@ with open(sample_list_path, 'r') as infile:
     male_samples = []
     female_samples = []
     for sample in sample_base_names:
-        if "_Male" in sample:
+        if "_m" in sample:
             male_samples.append(sample)
-        if "_Female" in sample:
+        if "_f" in sample:
             female_samples.append(sample)
 
 # Create the config structure
@@ -56,6 +55,7 @@ with open(sample_list_path, 'r') as infile:
     for line in infile:
         sample = line.strip()
         base_name = sample.split(".")[0]
+        base_name = base_name.replace("_R1_001", "")
         read1 = sample.replace(".fastq.gz", "")
         read2 = sample.replace(".fastq.gz", "")
         read = read2.replace("_R1_", "_R2_")

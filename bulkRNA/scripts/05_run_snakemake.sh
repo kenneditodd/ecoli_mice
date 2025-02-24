@@ -1,11 +1,9 @@
 #!/bin/sh
 #SBATCH --job-name=run_snakemake              # Job name
 #SBATCH --mem=5G                              # Memory allocation
-#SBATCH --mail-user=todd.kennedi@mayo.edu     # Email notifications
 #SBATCH --mail-type=END,FAIL                  # Notify on job end or failure
 #SBATCH --output=logs/%x.%j.stdout            # Standard output log
 #SBATCH --error=logs/%x.%j.stderr             # Standard error log
-#SBATCH --partition=cpu-short                 # Partition (queue)
 #SBATCH --time=24:00:00                       # Time limit (HH:MM:SS)
 
 # Activate conda environment
@@ -13,13 +11,14 @@ source $HOME/.bash_profile
 conda activate psilo
 
 # Change directory to where the Snakefile is located
-cd ../..
+cd ..
+pwd
 
 # Before running Snakemake, you should do a dry run with the command below
 #snakemake --dry-run --printshellcmds
 
 # Run Snakemake
-snakemake --snakefile Snakefile --jobs 20 --rerun-incomplete --latency-wait 60 --cluster "sbatch --mem=60G --output=scripts/01_preprocessing/logs/snakemake_job_logs/%x.%N.%j.stdout --error=scripts/01_preprocessing/logs/snakemake_job_logs/%x.%N.%j.stderr --partition=cpu-short --tasks=20 --time=05:00:00 --propagate=NONE"
+snakemake --snakefile Snakefile --jobs 20 --rerun-incomplete --latency-wait 60 --cluster "sbatch --mem=60G --output=scripts/logs/snakemake_job_logs/%x.%N.%j.stdout --error=scripts/logs/snakemake_job_logs/%x.%N.%j.stderr --tasks=20 --time=05:00:00"
 
 # Key for the Snakemake command:
 # --snakefile Snakefile: Specifies the Snakefile to use.
@@ -36,3 +35,13 @@ snakemake --snakefile Snakefile --jobs 20 --rerun-incomplete --latency-wait 60 -
 # --tasks=20            : Runs 20 tasks for each job.
 # --time=05:00:00       : Sets a time limit of 5 hours for each job.
 # --propagate=NONE      : Prevents signal propagation to job steps.
+
+##!/bin/sh
+##SBATCH --job-name=run_snakemake              # Job name
+##SBATCH --mem=5G                              # Memory allocation
+##SBATCH --mail-user=todd.kennedi@mayo.edu     # Email notifications
+##SBATCH --mail-type=END,FAIL                  # Notify on job end or failure
+##SBATCH --output=logs/%x.%j.stdout            # Standard output log
+##SBATCH --error=logs/%x.%j.stderr             # Standard error log
+##SBATCH --partition=cpu-short                 # Partition (queue)
+##SBATCH --time=24:00:00                       # Time limit (HH:MM:SS)

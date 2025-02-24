@@ -24,10 +24,13 @@ cluster_info = {
 with open(sample_list_path, 'r') as infile:
     
     # Read each line, strip whitespace, and remove the _R1 suffix
-    sample_base_names = [
-        line.split(".")[0]
-        for line in infile
-    ]
+    sample_base_names = []  # Create an empty list
+
+    for line in infile:
+        line = line.strip()
+        line = line.split(".")[0]
+        line = line.replace("_R1_001", "")
+        sample_base_names.append(line)
     
     # Loop through each sample name in sample_base_names
     male_samples = []
@@ -58,7 +61,7 @@ with open(sample_list_path, 'r') as infile:
         base_name = base_name.replace("_R1_001", "")
         read1 = sample.replace(".fastq.gz", "")
         read2 = sample.replace(".fastq.gz", "")
-        read = read2.replace("_R1_", "_R2_")
+        read2 = read2.replace("_R1_", "_R2_")
         config["SAMPLES"][base_name] = {
             "read1": read1,
             "read2": read2

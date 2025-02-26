@@ -8,8 +8,8 @@ source ../refs/.env
 cd $RAW_READS_DIR || exit 1  # Exit if directory change fails
 
 # Set variables
-fastq_files="${PROJECT_DIR}/refs/fastq_file_list.tsv"
-output_file="${PROJECT_DIR}/refs/fastq_headers.tsv"
+fastq_files="${PROJECT_DIR}refs/fastq_file_list.tsv"
+output_file="${PROJECT_DIR}refs/fastq_headers.tsv"
 
 # Check if the file list exists
 if [[ ! -f "$fastq_files" ]]; then

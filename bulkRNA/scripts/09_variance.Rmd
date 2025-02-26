@@ -1,8 +1,8 @@
 ---
-title: "Psilocybin Project 1"
+title: "E. coli Mice bulkRNAseq"
 subtitle: "Variance"
 author: "Kennedi Todd"
-date: "10/14/2024"
+date: "02/23/2024"
 output:
   html_document:
     theme: cerulean
@@ -22,32 +22,15 @@ knitr::opts_knit$set(root.dir = ".")
 ```{r libraries}
 library(corrplot)          # corrplot()
 library(dplyr)             # %>%
-library(edgeR)             # load DGEList object
 library(ggcorrplot)        # ggcorrplot()
-library(gplots)            # heatmap.2()
-library(limma)             # voomWithQualityWeights()
-library(variancePartition) # fitExtractVarPartModel()
+library(variancePartition) # canCorPairs()
 ```
 
 ## User defined variables
 ```{r set_variables}
 # Output directories and file paths
-out <- "../results/all_samples_sex_specific_combat_analysis/"
-out2 <- "all_samples_sex_specific_combat_analysis"
-
-# Colors and levels
-treatment_order <- c("saline", "psilocybin")
-treatment_colors <- c("gray60", "springgreen2")
-
-sex_order <- c("M", "F")
-sex_colors <- c("gold2", "purple")
-
-group_order <- c("S.8h", "S.24h", "S.7d", 
-                 "L.8h", "L.24h", "L.7d", 
-                 "H.8h", "H.24h", "H.7d")
-group_colors <- c("gray90", "gray60", "gray30", 
-                  "lightblue", "cornflowerblue", "blue", 
-                  "sienna1", "red2", "red4")
+out <- "../results/filtered_samples_both_sexes/"
+out2 <- "filtered_samples_both_sexes"
 ```
 
 ## Load data
@@ -67,15 +50,10 @@ meta <- as.data.frame(dge.filtered.norm$samples)
 variables <- c("group",
                "group2",
                "treatment",
-               "dose",
-               "timepoint",
+               "timepoint_days",
+               "age",
                "lib.size",
                "sex",
-               "weight_at_treatment",
-               "hbb_log2cpm",
-               "RIN",
-               "lane",
-               "RNA_extraction_batch",
                "hbb_log2cpm")
 meta <- meta %>% select(all_of(variables))
 
@@ -84,13 +62,7 @@ meta$log2.lib <- log2(meta$lib.size)
 meta$lib.size <- NULL
 
 # change class
-meta$group <- factor(meta$group, levels = group_order)
 meta$group2 <- factor(meta$group2)
-meta$dose <- factor(meta$dose)
-meta$weight_at_treatment <- as.numeric(gsub(" grams","",meta$weight_at_treatment))
-meta$timepoint <- factor(meta$timepoint)
-meta$lane <- factor(meta$lane)
-meta$RNA_extraction_batch <- factor(meta$RNA_extraction_batch)
 
 # check classes
 sapply(meta, class)
@@ -104,7 +76,7 @@ sapply(meta, class)
 path <- paste0(out, "variance/spearman_correlation_heatmap1.pdf")
 pdf(path, width = 8, height = 8)
 # formula
-form <- ~0 + group + sex + log2.lib + RIN + RNA_extraction_batch + hbb_log2cpm + lane
+form <- ~0 + group + sex + log2.lib + hbb_log2cpm
 # correlation plot
 model.matrix(form, data = meta) %>% 
   cor(method = "spearman") %>% 
@@ -115,7 +87,7 @@ dev.off()
 path <- paste0(out, "variance/spearman_correlation_heatmap2.pdf")
 pdf(path, width = 8, height = 8)
 # formula
-form <- ~0 + group2 + log2.lib + RIN + RNA_extraction_batch + hbb_log2cpm + lane
+form <- ~0 + group2 + log2.lib + hbb_log2cpm
 # correlation plot
 model.matrix(form, data = meta) %>% 
   cor(method = "spearman") %>% 
@@ -126,7 +98,7 @@ dev.off()
 path <- paste0(out, "variance/spearman_correlation_heatmap3.pdf")
 pdf(path, width = 8, height = 8)
 # formula
-form <- ~0 + dose + timepoint + sex + log2.lib + RIN + RNA_extraction_batch + hbb_log2cpm + lane
+form <- ~0 + treatment + timepoint_days + age + sex + log2.lib + hbb_log2cpm
 # correlation plot
 model.matrix(form, data = meta) %>% 
   cor(method = "spearman") %>% 
@@ -140,7 +112,7 @@ dev.off()
 path <- paste0(out, "variance/canonical_correlation_analysis_heatmap1.pdf")
 pdf(path, width = 8, height = 8)
 # formula
-form <- ~0 + group + sex + log2.lib + RIN + RNA_extraction_batch + hbb_log2cpm + lane
+form <- ~0 + group + sex + log2.lib + hbb_log2cpm
 # CCA
 c <- canCorPairs(form, meta)
 # plot
@@ -161,7 +133,7 @@ dev.off()
 path <- paste0(out, "variance/canonical_correlation_analysis_heatmap2.pdf")
 pdf(path, width = 8, height = 8)
 # formula
-form <- ~0 + group2 + log2.lib + RIN + RNA_extraction_batch + hbb_log2cpm + lane
+form <- ~0 + group2 + log2.lib + hbb_log2cpm
 # CCA
 c <- canCorPairs(form, meta)
 # plot
@@ -182,7 +154,7 @@ dev.off()
 path <- paste0(out, "variance/canonical_correlation_analysis_heatmap3.pdf")
 pdf(path, width = 8, height = 8)
 # formula
-form <- ~0 + dose + timepoint + sex + log2.lib + RIN + RNA_extraction_batch + hbb_log2cpm + lane
+form <- ~0 + treatment + timepoint_days + age + sex + log2.lib + hbb_log2cpm
 # CCA
 c <- canCorPairs(form, meta)
 # plot
@@ -209,7 +181,7 @@ colnames(meta)
 
 # age is usually a continuous so model it as a fixed effect "age"
 # group is categorical, so model them as random effects "(1|group)"
-form <- ~ (1|dose) + (1|timepoint) + (1|sex) + RIN + hbb_log2cpm
+form <- ~ (1|treatment) + (1|timepoint_days) + (1|sex) + (1|age)
 
 varPart <- fitExtractVarPartModel(geneExpr, form, meta)
 vp <- sortCols(varPart)
@@ -236,12 +208,6 @@ pdf(paste0(path, ".pdf"), width = 12, height = 6)
 plotPercentBars(vp[1:10,])
 ```
 
-## Sex var
-```{r variance_sex}
-# sort genes based on variance explained by group
-order.varPart.df <- varPart.df[order(varPart.df$sex, decreasing = TRUE),]
-head(order.varPart.df["sex"], 10)
-```
 
 ```{r session_info}
 sessionInfo()

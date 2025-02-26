@@ -1,15 +1,20 @@
 # load libraries
+library(dotenv)
 library(dplyr)
 library(Seurat)
 setwd(".")
 
 # thresholds
 nCount.min <- 400
-nCount.max <- 25000
+nCount.max <- 20000
 nFeature.min <- 250
 complexity.cutoff <- 0.8
 mt.cutoff <- 10
 hb.cutoff <- 1
+
+# load the environment variables
+load_dot_env(file = "../../refs/.env")
+ann_dir <- Sys.getenv("ANNOTATION_REFS")
 
 # read in annotation file
 if (file.exists("../../rObjects/annotation.rds")) {
@@ -23,17 +28,6 @@ if (file.exists("../../rObjects/annotation.rds")) {
 
 # load data
 mouse <- readRDS("../../rObjects/seurat_obj_before_filtering.rds")
-
-# set levels
-mouse$treatment <- factor(mouse$treatment, levels = c("saline", "ecoli"))
-mouse$timepoint_days <- factor(mouse$timepoint_days, levels = c("2", "18"))
-mouse$age <- factor(mouse$age, levels = c("young", "old"))
-mouse$sex <- factor(mouse$sex, levels = c("Female", "Male"))
-new_order <- mouse@meta.data %>%
-  arrange(treatment, timepoint_days, age, sex, animal_id) %>%
-  select(sample)
-new_order <- unique(new_order$sample)
-mouse$sample <- factor(mouse$sample, levels = new_order)
 
 # reorder columns
 new_order <- mouse@meta.data %>%

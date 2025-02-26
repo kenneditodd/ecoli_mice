@@ -26,7 +26,6 @@ library(cowplot)     # plot_grid()
 library(dplyr)       # left_join()
 library(ggplot2)     # ggplot()
 library(gridExtra)   # grid.arrange()
-library(parallel)    # detectCores()
 library(rtracklayer) # import()
 library(scCustomize) # Merge_Seurat_List()
 library(Seurat)      # Read10X_h5()
@@ -36,11 +35,11 @@ library(stringr)     # str_match()
 ## Variables and functions
 ```{r set_variables_and_thresholds}
 # variables
-out <- "../../results/without_integration/"
+out <- "../../results/with_integration/pass1/"
 
 # thresholds
 nCount.min <- 400
-nCount.max <- 25000
+nCount.max <- 20000
 nFeature.min <- 250
 complexity.cutoff <- 0.8
 mt.cutoff <- 10

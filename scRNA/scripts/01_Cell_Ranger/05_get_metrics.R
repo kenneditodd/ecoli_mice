@@ -31,8 +31,8 @@ rownames(df) <- samples
 df <- df %>%
   rename(
     estimated_cells = Estimated.Number.of.Cells,
-    mean_reads = Mean.Reads.per.Cell,
-    median_genes = Median.Genes.per.Cell,
+    mean_reads_per_cell = Mean.Reads.per.Cell,
+    median_genes_per_cell = Median.Genes.per.Cell,
     number_reads = Number.of.Reads,
     valid_barcodes = Valid.Barcodes,
     sequencing_saturation = Sequencing.Saturation,

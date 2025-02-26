@@ -52,12 +52,9 @@ DE_within_each_cluster <- function(obj, outDir, clusterCol = "annotated_clusters
     master.df <- rbind(master.df, markers)
   }
   
-  # rename columns
+  # rename dynamically using rename_with()
   master.df <- master.df %>%
-    rename(
-      !!paste0("percent_", group1) := "pct.1",
-      !!paste0("percent_", group2) := "pct.2"
-    )
+    rename_with(~paste0("percent_", c(group1, group2)), c(pct.1, pct.2))
   
   # set row names
   rownames(master.df) <- 1:nrow(master.df)
@@ -65,7 +62,6 @@ DE_within_each_cluster <- function(obj, outDir, clusterCol = "annotated_clusters
   # calculate difference
   master.df$percent_difference <- 
     abs(master.df[[paste0("percent_", group1)]] - master.df[[paste0("percent_", group2)]])
-  
   
   # reorder columns
   master.df <- master.df[,c(6,7,1,5,2,3,4,8)]

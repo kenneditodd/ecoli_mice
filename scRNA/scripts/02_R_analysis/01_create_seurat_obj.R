@@ -79,9 +79,6 @@ if (file.exists(paste0("../../rObjects/seurat_obj_merged_10x.rds"))) {
   mouse@meta.data <- left_join(x = mouse@meta.data, y = meta, by = "animal_id")
   rownames(mouse@meta.data) <- mouse$orig.ident
   
-  # save
-  saveRDS(mouse, "../../rObjects/seurat_obj_merged_10x.rds")
-  
   # cleanup
   remove(meta, seurat_obj_list)
   gc()

@@ -38,9 +38,8 @@ library(UpSetR)       # fromList()
 ## Variables and functions
 ```{r set_variables_and_functions}
 # variables
-out <- "../../results/without_integration/recluster_group1/"
-keep_clusters <- c("Endothelial", "?Fibro?Peri?Endo?", "Astrocytes / Endothelial",
-                   "Astrocytes", "Pericytes & SMCs")
+out <- "../../results/with_integration/pass1/reclusters/group1/"
+keep_clusters <- c("Oligodendrocytes","OPCs")
 
 # single cell functions
 files <- list.files("../../functions", full.names = TRUE)
@@ -53,7 +52,6 @@ mouse.annotated <- readRDS("../../rObjects/seurat_obj_annotated.rds")
 ```
 
 # Recluster group 1
-- Group 1 recluster: Endothelial, ?Fibro?Peri?Endo?, Astrocytes / Endothelial, Astrocytes, Pericytes & SMCs \
 ## Subset
 ```{r subset_endothelial}
 # subset clusters
@@ -61,8 +59,8 @@ seurat_subset <- subset(mouse.annotated, annotated_clusters %in% keep_clusters)
 
 # create new seurat object
 counts <- GetAssayData(object = seurat_subset, layer = "counts")
-seurat_subset <- CreateSeuratObject(counts, 
-                                    meta.data = seurat_subset@meta.data[,c(1:24,33,34)])
+seurat_subset <- 
+  CreateSeuratObject(counts, meta.data = seurat_subset@meta.data[,c(1:24,31)])
 
 # rename columns
 seurat_subset$og_annotations <- seurat_subset$annotated_clusters

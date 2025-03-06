@@ -38,8 +38,8 @@ library(tidyverse)   # ggplot(), left_join(), column_to_rownames(), pivot_wider(
 load_dot_env(file = "../refs/.env")  # Adjust the path to your .env file
 
 # Output directories and file paths
-out <- "../results/filtered_samples_both_sexes/"
-out2 <- "filtered_samples_both_sexes"
+out <- "../results/filtered_samples_sex_specific/"
+out2 <- "filtered_samples_sex_specific"
 ann <- Sys.getenv("MMUSCULUS_GTF")
 
 # Read metadata
@@ -127,7 +127,7 @@ dge$samples$hbb_log2cpm <- as.numeric(cpm(dge, log = TRUE)["Hbb-bs", ])
 
 ## Remove samples
 ```{r remove_samples}
-keep <- !dge$samples$sample %in% c("E.21D.O.F.182","E.2D.Y.F.77","S.2D.Y.F.55")
+keep <- !dge$samples$sample %in% c("E.21D.O.F.182","E.2D.Y.F.77","S.2D.Y.F.55","S.2D.O.F.151")
 dge <- dge[,keep]
 dim(dge)
 ```
@@ -137,7 +137,8 @@ dim(dge)
 ```{r cpm_bar_graph}
 # user input
 goi <- c("Eif2s3y","Uty","Kdm5d","Ddx3y","Eif2s3x","Ddx3x","Kdm6a","Kdm5c",
-         "Med12","Hbb-bs")
+         "Med12","Hbb-bs","Lnc2")
+goi <- "Lcn2"
 
 # plot and save
 for (i in 1:length(goi)) {

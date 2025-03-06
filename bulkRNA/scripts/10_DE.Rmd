@@ -30,9 +30,9 @@ library(tidyverse)  # ggplot(), %>%, pivot_wider()
 ## User defined variables
 ```{r set_variables}
 # Output directories and file paths
-out <- "../results/filtered_samples_both_sexes/"
-out2 <- "filtered_samples_both_sexes"
-model <- "DEGs/"
+out <- "../results/sex_specific_filtering_but_both_sexes_comparison/"
+out2 <- "filtered_samples_sex_specific"
+model <- "DEGs_with_hbb/"
 
 # Read metadata
 meta <- readRDS("../rObjects/meta.rds")
@@ -70,17 +70,40 @@ head(colnames(dge.filtered.norm))
 ```{r design_matrix}
 design <- ""
 
-if (grepl("sex_specific", out2)) {
-  print("sex specific analysis")
+if (out2 == "filtered_samples_sex_specific" && out == "../results/sex_specific_filtering_but_both_sexes_comparison/") {
+  print("both sexes analysis with hbb")
+  group <- interaction(dge.filtered.norm$samples$group)
+  sex <- factor(dge.filtered.norm$samples$sex)
+  hbb <- as.numeric(dge.filtered.norm$samples$hbb_log2cpm)
+  design <- model.matrix(~ 0 + group + sex + hbb)
+  design.names <- gsub("group","", colnames(design))
+  colnames(design) <- design.names
+} else if (grepl("sex_specific", out2) && (model == "DEGs_with_hbb/")) {
+  print("sex specific analysis with hbb")
   group2 <- interaction(dge.filtered.norm$samples$group2)
-  design <- model.matrix(~ 0 + group2)
+  hbb <- as.numeric(dge.filtered.norm$samples$hbb_log2cpm)
+  design <- model.matrix(~ 0 + group2 + hbb)
   design.names <- gsub("group2","", colnames(design))
   colnames(design) <- design.names
-} else if (grepl("both_sexes", out2)) {
-  print("both sexes analysis")
+} else if (grepl("sex_specific", out2) && (model == "DEGs/")) {
+  print("sex specific analysis without hbb")
+  group2 <- factor(dge.filtered.norm$samples$group2)
+  design <- model.matrix(~ 0 + group2)
+  design.names <- gsub("group2","", colnames(design))
+  colnames(design) <- design.names  
+} else if (grepl("both_sexes", out2) && (model == "DEGs/")) {
+  print("both sexes analysis without hbb")
   group <- interaction(dge.filtered.norm$samples$group)
   sex <- factor(dge.filtered.norm$samples$sex)
   design <- model.matrix(~ 0 + group + sex)
+  design.names <- gsub("group","", colnames(design))
+  colnames(design) <- design.names
+} else if (grepl("both_sexes", out2) && (model == "DEGs_with_hbb/")) {
+  print("both sexes analysis with hbb")
+  group <- interaction(dge.filtered.norm$samples$group)
+  sex <- factor(dge.filtered.norm$samples$sex)
+  hbb <- as.numeric(dge.filtered.norm$samples$hbb_log2cpm)
+  design <- model.matrix(~ 0 + group + sex + hbb)
   design.names <- gsub("group","", colnames(design))
   colnames(design) <- design.names
 }
@@ -92,7 +115,20 @@ head(design)
 ```{r contrasts}
 myContrasts <- ""
 
-if (out2 == "filtered_samples_sex_specific" | out2 == "all_samples_sex_specific") {
+if (out2 == "filtered_samples_sex_specific" && out == "../results/sex_specific_filtering_but_both_sexes_comparison/") {
+    myContrasts <- c(
+    # E - S comparisons
+    "E.2D.Y - S.2D.Y", "E.21D.Y - S.21D.Y",
+    "E.2D.O - S.2D.O", "E.21D.O - S.21D.O",
+  
+    # 21D - 2D comparisons
+    "E.21D.Y - E.2D.Y", "S.21D.Y - S.2D.Y",
+    "E.21D.O - E.2D.O", "S.21D.O - S.2D.O",
+  
+    # O - Y comparisons
+    "E.2D.O - E.2D.Y", "S.2D.O - S.2D.Y",
+    "E.21D.O - E.21D.Y", "S.21D.O - S.21D.Y")
+} else if (out2 == "filtered_samples_sex_specific" | out2 == "all_samples_sex_specific") {
   myContrasts <- c(
     # E - S comparisons
     "E.2D.Y.F - S.2D.Y.F", "E.2D.Y.M - S.2D.Y.M",
@@ -453,7 +489,7 @@ for (dim in dims) {
 Identify number of differentially expressed genes.
 ```{r decide_tests}
 # set thresholds
-pval <- 0.01
+pval <- 0.05
 my.lfc <- 0
 
 # run tests

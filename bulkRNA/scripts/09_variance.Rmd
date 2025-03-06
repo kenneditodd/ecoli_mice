@@ -29,8 +29,8 @@ library(variancePartition) # canCorPairs()
 ## User defined variables
 ```{r set_variables}
 # Output directories and file paths
-out <- "../results/filtered_samples_both_sexes/"
-out2 <- "filtered_samples_both_sexes"
+out <- "../results/filtered_samples_sex_specific/"
+out2 <- "filtered_samples_sex_specific"
 ```
 
 ## Load data

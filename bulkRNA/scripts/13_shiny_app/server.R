@@ -18,11 +18,18 @@ server <- shinyServer(function(input, output, session) {
   
   # DEG table selection
   observe({
+    # DEG file options
     deg_files <- list.files("data/DEGs", pattern = "\\.tsv$", full.names = FALSE)
+    # update for volcano tab
     updateSelectInput(session, "deg_table", choices = deg_files)
-    updateSelectInput(session, "deg_list1", choices = deg_files, 
+    # update for correlation tab
+    updateSelectInput(session, "corr_deg_list1_or", choices = deg_files, 
                       selected = "E.2D.O.F_vs_S.2D.O.F_FDRq_1.00_LFC_0.00.tsv")
-    updateSelectInput(session, "deg_list2", choices = deg_files,
+    updateSelectInput(session, "corr_deg_list2_or", choices = deg_files,
+                      selected = "E.2D.Y.F_vs_S.2D.Y.F_FDRq_1.00_LFC_0.00.tsv")
+    updateSelectInput(session, "corr_deg_list1", choices = deg_files, 
+                      selected = "E.2D.O.F_vs_S.2D.O.F_FDRq_1.00_LFC_0.00.tsv")
+    updateSelectInput(session, "corr_deg_list2", choices = deg_files,
                       selected = "E.2D.Y.F_vs_S.2D.Y.F_FDRq_1.00_LFC_0.00.tsv")
   })
   
@@ -93,14 +100,39 @@ server <- shinyServer(function(input, output, session) {
     }
   )
   
-  # Correlation plot
-  output$correlation_plot <- renderPlotly({
-    plot_correlation(deg_list1 = input$deg_list1,
-                     fdrq1 = input$cor_fdrq_cutoff1,
-                     lfc1 = input$cor_lfc_cutoff1,
-                     deg_list2 = input$deg_list2,
-                     fdrq2 = input$cor_fdrq_cutoff2,
-                     lfc2 = input$cor_lfc_cutoff2)
+  # Correlation plo - detect OR/AND filtering
+  output$correlation_plot <- renderUI({
+    if (input$corr_filter_and_or == "OR") {
+      plotlyOutput("correlation_plot_or")
+    } else {
+      plotlyOutput("correlation_plot_and")
+    }
+  })
+  
+  # correlation plot when filtering by OR
+  output$correlation_plot_or <- renderPlotly({
+    # required input
+    req(input$corr_deg_list1_or, input$corr_deg_list2_or,
+        input$corr_fdrq_cutoff, input$corr_lfc_cutoff)
+    # plot correlation
+    plot_correlation(deg_list1 = input$corr_deg_list1_or,
+                     deg_list2 = input$corr_deg_list2_or,
+                     fdrq1 = input$corr_fdrq_cutoff,
+                     lfc1 = input$corr_lfc_cutoff)     
+  })
+  
+  # correlation plot when filtering by AND
+  output$correlation_plot_and <- renderPlotly({
+    # required input
+    req(input$corr_deg_list1, input$corr_fdrq_cutoff1, input$corr_lfc_cutoff1,
+        input$corr_deg_list2, input$corr_fdrq_cutoff2, input$corr_lfc_cutoff2)
+    # plot correlation
+    plot_correlation(deg_list1 = input$corr_deg_list1,
+                     fdrq1 = input$corr_fdrq_cutoff1,
+                     lfc1 = input$corr_lfc_cutoff1,
+                     deg_list2 = input$corr_deg_list2,
+                     fdrq2 = input$corr_fdrq_cutoff2,
+                     lfc2 = input$corr_lfc_cutoff2)  
   })
   
 })

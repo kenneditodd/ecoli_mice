@@ -1,17 +1,31 @@
 # For testing
-deg_list1 <- "E.2D.O.F_vs_E.2D.O.M_FDRq_1.00_LFC_0.00.tsv"
-deg_list2 <- "E.2D.O.F_vs_E.2D.Y.F_FDRq_1.00_LFC_0.00.tsv"
-fdrq <- 1
-lfc <- 0
+#deg_list1 <- "E.2D.O.F_vs_S.2D.O.F_FDRq_1.00_LFC_0.00.tsv"
+#deg_list2 <- "E.2D.Y.F_vs_S.2D.Y.F_FDRq_1.00_LFC_0.00.tsv"
+#fdrq1 <- 0.05
+#lfc1 <- 0
+#fdrq2 <- NULL
+#lfc2 <- NULL
 
-plot_correlation <- function(deg_list1, fdrq1, lfc1, deg_list2, fdrq2, lfc2) {
+plot_correlation <- function(deg_list1, fdrq1, lfc1, deg_list2, fdrq2 = NULL, lfc2 = NULL) {
   
+  # read tables
   data1 <- readr::read_tsv(paste0("data/DEGs/", deg_list1), show_col_types = FALSE)
   data2 <- readr::read_tsv(paste0("data/DEGs/", deg_list2), show_col_types = FALSE)
-  
-  # Filter based on criteria
-  data1 <- data1 %>% filter(adj.P.Val < fdrq1 & (logFC > lfc1 | logFC < -lfc1))
-  data2 <- data2 %>% filter(adj.P.Val < fdrq2 & (logFC > lfc2 | logFC < -lfc2))
+
+  # Filter based on criteria - AND/OR
+  if (is.null(fdrq2) && is.null(lfc2) && !is.null(fdrq1) && !is.null(lfc1)) {
+    # filter by OR
+    genes_to_keep <- unique(c(
+      data1 %>% filter(adj.P.Val < fdrq1 & (logFC > lfc1 | logFC < -lfc1)) %>% pull(gene_name),
+      data2 %>% filter(adj.P.Val < fdrq1 & (logFC > lfc1 | logFC < -lfc1)) %>% pull(gene_name)
+    ))
+    data1 <- data1 %>% filter(gene_name %in% genes_to_keep)
+    data2 <- data2 %>% filter(gene_name %in% genes_to_keep)
+  } else if (!is.null(fdrq2) && !is.null(lfc2)) {
+    # filter by AND
+    data1 <- data1 %>% filter(adj.P.Val < fdrq1 & (logFC > lfc1 | logFC < -lfc1))
+    data2 <- data2 %>% filter(adj.P.Val < fdrq2 & (logFC > lfc2 | logFC < -lfc2))
+  }
   
   # Find shared genes
   shared_genes <- intersect(data1$gene_name_unique, data2$gene_name_unique)
@@ -24,6 +38,7 @@ plot_correlation <- function(deg_list1, fdrq1, lfc1, deg_list2, fdrq2, lfc2) {
   
   # Check for sufficient data
   if (nrow(shared) < 2) {
+    print(length(shared))
     warning("Not enough data points to plot correlation")
     return(NULL)
   }

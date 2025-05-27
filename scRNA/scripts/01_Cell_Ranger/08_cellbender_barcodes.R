@@ -79,4 +79,4 @@ mouse
 
 # extract barcodes that survived cell bender filtering
 barcodes <- colnames(mouse)
-saveRDS(barcodes, file = "../../rObjects/cellbender_passed_barcodes.rds")
+saveRDS(barcodes, file = "../../rObjects/cellbender_passed_barcodes.rds", compress = FALSE)

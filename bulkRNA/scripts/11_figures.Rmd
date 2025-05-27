@@ -1,8 +1,8 @@
 ---
-title: "Psilocybin Project 1"
+title: "E. coli Mice bulkRNAseq"
 subtitle: "Figures"
 author: "Kennedi Todd"
-date: "10/14/2024"
+date: "02/23/2024"
 output:
   html_document:
     theme: cerulean
@@ -74,6 +74,463 @@ get_exclusive_intersection_genes <- function(upset_data, list_input) {
 }
 ```
 
+# Upset filtering comparison
+## E.2D.Y vs S.2D.Y
+### Plot
+```{r}
+# set variables
+thresh <- 0.05
+myLfc <- 0
+model <- "DEGs_with_hbb/"
+
+# read tables
+ss_filt <- read.delim(
+  paste0("../results/sex_specific_filtering_but_both_sexes_comparison/", 
+         model, "DEG_tables/E.2D.Y_vs_S.2D.Y_FDRq_1.00_LFC_0.00.tsv"))
+bs_filt <- read.delim(
+  paste0("../results/filtered_samples_both_sexes/", 
+         model, "DEG_tables/E.2D.Y_vs_S.2D.Y_FDRq_1.00_LFC_0.00.tsv"))
+rownames(ss_filt) <- ss_filt$gene_name_unique
+rownames(bs_filt) <- bs_filt$gene_name_unique
+
+# filter on pval
+ss_filt <- ss_filt[ss_filt$adj.P.Val < thresh,]
+bs_filt <- bs_filt[bs_filt$adj.P.Val < thresh,]
+
+# Subset lists
+ss_filt.up <- subset(ss_filt$gene_name_unique, ss_filt$logFC > myLfc)
+ss_filt.down <- subset(ss_filt$gene_name_unique, ss_filt$logFC < -myLfc)
+bs_filt.up <- subset(bs_filt$gene_name_unique, bs_filt$logFC > myLfc)
+bs_filt.down <- subset(bs_filt$gene_name_unique, bs_filt$logFC < -myLfc)
+list_input <- list("both sexes filtering, up-regulated" = bs_filt.up,
+                   "sex specific filtering, up-regulated" = ss_filt.up,
+                   "both sexes filtering, down-regulated" = bs_filt.down,
+                   "sex specific filtering, down-regulated" = ss_filt.down)
+data <- fromList(list_input)
+  
+# store names
+names <- colnames(data)
+  
+# plot
+upset_gene <- ComplexUpset::upset(data, 
+				  names,
+				  set_sizes=(
+					upset_set_size()
+					+ geom_text(aes(label=..count..), hjust=1.1, stat='count')
+					+ expand_limits(y=400)),
+				  queries = list(upset_query("both sexes filtering, up-regulated", fill = "red"),
+								 upset_query("sex specific filtering, up-regulated", fill = "red"),
+								 upset_query("8 hr Low Dose Psilocybin vs Saline Down-regulated", fill = "blue"),
+								 upset_query("both sexes filtering, down-regulated", fill = "blue"),
+								 upset_query("sex specific filtering, down-regulated", fill = "blue")),
+				  base_annotations = list('Intersection size' = (
+					intersection_size(bar_number_threshold=1, width=0.5)
+					+ scale_y_continuous(expand=expansion(mult=c(0, 0.05)),limits = c(0,250)) # space on top
+					+ theme(
+						  # hide grid lines
+						  panel.grid.major=element_blank(),
+						  panel.grid.minor=element_blank(),
+						  # show axis lines
+						  axis.line=element_line(colour='black')))),
+				  stripes = upset_stripes(
+					geom=geom_segment(size=12),  # make the stripes larger
+					colors=c('grey95', 'white')),
+				  # to prevent connectors from getting the colorured
+				  # use `fill` instead of `color`, together with `shape='circle filled'`
+				  matrix = intersection_matrix(
+					geom=geom_point(
+					  shape='circle filled',
+					  size=3,
+					  stroke=0.45)),
+				  sort_sets=FALSE,
+				  sort_intersections='descending'
+				)
+
+upset_gene <- upset_gene + ggtitle(paste0("E.2D.Y vs S.2D.Y, FDRq < ", format(thresh, nsmall = 2),
+                                          ", |LFC| > ", format(myLfc, nsmall = 2)))
+
+# save
+pdf(paste0("../results/filtering_comparison/E.2D.Y_vs_S.2D.Y_FDRq_", format(thresh, nsmall = 2), 
+           "_LFC_", format(myLfc, nsmall = 2), "_upset.pdf"), 
+    height = 6, width = 10)
+upset_gene
+```
+
+### Extract
+```{r}
+# convert the gene sets into a binary matrix (like UpSet plot input)
+upset_data <- UpSetR::fromList(list_input)
+
+# call the function to extract the exclusive intersection genes
+exclusive_intersection_results <- get_exclusive_intersection_genes(upset_data, list_input)
+
+# convert the list to a data.frame with two columns: Total genes and gene list
+exclusive_intersection_df <- do.call(rbind, lapply(names(exclusive_intersection_results), function(x) {
+  data.frame(
+    Intersection = x,
+    Total_Genes = exclusive_intersection_results[[x]]$total_genes,
+    Gene_List = exclusive_intersection_results[[x]]$gene_list,
+    stringsAsFactors = FALSE
+  )
+}))
+exclusive_intersection_df <- 
+  exclusive_intersection_df[order(exclusive_intersection_df$Total_Genes, decreasing = TRUE),]
+
+# save
+write.table(x = exclusive_intersection_df,
+            file = paste0("../results/filtering_comparison/E.2D.Y_vs_S.2D.Y_FDRq_", 
+                          format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), 
+                          "_results.tsv"),
+            sep = "\t",
+            quote = FALSE,
+            col.names = TRUE,
+            row.names = FALSE)
+```
+
+
+## E.2D.O vs S.2D.O
+### Plot
+```{r}
+# set variables
+thresh <- 0.05
+myLfc <- 0
+model <- "DEGs_with_hbb/"
+
+# read tables
+ss_filt <- read.delim(
+  paste0("../results/sex_specific_filtering_but_both_sexes_comparison/", 
+         model, "DEG_tables/E.2D.O_vs_S.2D.O_FDRq_1.00_LFC_0.00.tsv"))
+bs_filt <- read.delim(
+  paste0("../results/filtered_samples_both_sexes/", 
+         model, "DEG_tables/E.2D.O_vs_S.2D.O_FDRq_1.00_LFC_0.00.tsv"))
+rownames(ss_filt) <- ss_filt$gene_name_unique
+rownames(bs_filt) <- bs_filt$gene_name_unique
+
+# filter on pval
+ss_filt <- ss_filt[ss_filt$adj.P.Val < thresh,]
+bs_filt <- bs_filt[bs_filt$adj.P.Val < thresh,]
+
+# Subset lists
+ss_filt.up <- subset(ss_filt$gene_name_unique, ss_filt$logFC > myLfc)
+ss_filt.down <- subset(ss_filt$gene_name_unique, ss_filt$logFC < -myLfc)
+bs_filt.up <- subset(bs_filt$gene_name_unique, bs_filt$logFC > myLfc)
+bs_filt.down <- subset(bs_filt$gene_name_unique, bs_filt$logFC < -myLfc)
+list_input <- list("both sexes filtering, up-regulated" = bs_filt.up,
+                   "sex specific filtering, up-regulated" = ss_filt.up,
+                   "both sexes filtering, down-regulated" = bs_filt.down,
+                   "sex specific filtering, down-regulated" = ss_filt.down)
+data <- fromList(list_input)
+  
+# store names
+names <- colnames(data)
+  
+# plot
+upset_gene <- ComplexUpset::upset(data, 
+				  names,
+				  set_sizes=(
+					upset_set_size()
+					+ geom_text(aes(label=..count..), hjust=1.1, stat='count')
+					+ expand_limits(y=400)),
+				  queries = list(upset_query("both sexes filtering, up-regulated", fill = "red"),
+								 upset_query("sex specific filtering, up-regulated", fill = "red"),
+								 upset_query("8 hr Low Dose Psilocybin vs Saline Down-regulated", fill = "blue"),
+								 upset_query("both sexes filtering, down-regulated", fill = "blue"),
+								 upset_query("sex specific filtering, down-regulated", fill = "blue")),
+				  base_annotations = list('Intersection size' = (
+					intersection_size(bar_number_threshold=1, width=0.5)
+					+ scale_y_continuous(expand=expansion(mult=c(0, 0.05)),limits = c(0,350)) # space on top
+					+ theme(
+						  # hide grid lines
+						  panel.grid.major=element_blank(),
+						  panel.grid.minor=element_blank(),
+						  # show axis lines
+						  axis.line=element_line(colour='black')))),
+				  stripes = upset_stripes(
+					geom=geom_segment(size=12),  # make the stripes larger
+					colors=c('grey95', 'white')),
+				  # to prevent connectors from getting the colorured
+				  # use `fill` instead of `color`, together with `shape='circle filled'`
+				  matrix = intersection_matrix(
+					geom=geom_point(
+					  shape='circle filled',
+					  size=3,
+					  stroke=0.45)),
+				  sort_sets=FALSE,
+				  sort_intersections='descending'
+				)
+
+upset_gene <- upset_gene + ggtitle(paste0("E.2D.O vs S.2D.O, FDRq < ", format(thresh, nsmall = 2),
+                                          ", |LFC| > ", format(myLfc, nsmall = 2)))
+
+# save
+pdf(paste0("../results/filtering_comparison/E.2D.O_vs_S.2D.O_FDRq_", format(thresh, nsmall = 2), 
+           "_LFC_", format(myLfc, nsmall = 2), "_upset.pdf"), 
+    height = 6, width = 10)
+upset_gene
+```
+
+### Extract
+```{r}
+# convert the gene sets into a binary matrix (like UpSet plot input)
+upset_data <- UpSetR::fromList(list_input)
+
+# call the function to extract the exclusive intersection genes
+exclusive_intersection_results <- get_exclusive_intersection_genes(upset_data, list_input)
+
+# convert the list to a data.frame with two columns: Total genes and gene list
+exclusive_intersection_df <- do.call(rbind, lapply(names(exclusive_intersection_results), function(x) {
+  data.frame(
+    Intersection = x,
+    Total_Genes = exclusive_intersection_results[[x]]$total_genes,
+    Gene_List = exclusive_intersection_results[[x]]$gene_list,
+    stringsAsFactors = FALSE
+  )
+}))
+exclusive_intersection_df <- 
+  exclusive_intersection_df[order(exclusive_intersection_df$Total_Genes, decreasing = TRUE),]
+
+# save
+write.table(x = exclusive_intersection_df,
+            file = paste0("../results/filtering_comparison/E.2D.O_vs_S.2D.O_FDRq_", 
+                          format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), 
+                          "_results.tsv"),
+            sep = "\t",
+            quote = FALSE,
+            col.names = TRUE,
+            row.names = FALSE)
+```
+
+
+## E.21D.Y vs S.21D.Y
+### Plot
+```{r}
+# set variables
+thresh <- 0.05
+myLfc <- 0
+model <- "DEGs_with_hbb/"
+
+# read tables
+ss_filt <- read.delim(
+  paste0("../results/sex_specific_filtering_but_both_sexes_comparison/", 
+         model, "DEG_tables/E.21D.Y_vs_S.21D.Y_FDRq_1.00_LFC_0.00.tsv"))
+bs_filt <- read.delim(
+  paste0("../results/filtered_samples_both_sexes/", 
+         model, "DEG_tables/E.21D.Y_vs_S.21D.Y_FDRq_1.00_LFC_0.00.tsv"))
+rownames(ss_filt) <- ss_filt$gene_name_unique
+rownames(bs_filt) <- bs_filt$gene_name_unique
+
+# filter on pval
+ss_filt <- ss_filt[ss_filt$adj.P.Val < thresh,]
+bs_filt <- bs_filt[bs_filt$adj.P.Val < thresh,]
+
+# Subset lists
+ss_filt.up <- subset(ss_filt$gene_name_unique, ss_filt$logFC > myLfc)
+ss_filt.down <- subset(ss_filt$gene_name_unique, ss_filt$logFC < -myLfc)
+bs_filt.up <- subset(bs_filt$gene_name_unique, bs_filt$logFC > myLfc)
+bs_filt.down <- subset(bs_filt$gene_name_unique, bs_filt$logFC < -myLfc)
+list_input <- list("both sexes filtering, up-regulated" = bs_filt.up,
+                   "sex specific filtering, up-regulated" = ss_filt.up,
+                   "both sexes filtering, down-regulated" = bs_filt.down,
+                   "sex specific filtering, down-regulated" = ss_filt.down)
+data <- fromList(list_input)
+  
+# store names
+names <- colnames(data)
+  
+# plot
+upset_gene <- ComplexUpset::upset(data, 
+				  names,
+				  set_sizes=(
+					upset_set_size()
+					+ geom_text(aes(label=..count..), hjust=1.1, stat='count')
+					+ expand_limits(y=400)),
+				  queries = list(upset_query("both sexes filtering, up-regulated", fill = "red"),
+								 upset_query("sex specific filtering, up-regulated", fill = "red"),
+								 upset_query("8 hr Low Dose Psilocybin vs Saline Down-regulated", fill = "blue"),
+								 upset_query("both sexes filtering, down-regulated", fill = "blue"),
+								 upset_query("sex specific filtering, down-regulated", fill = "blue")),
+				  base_annotations = list('Intersection size' = (
+					intersection_size(bar_number_threshold=1, width=0.5)
+					+ scale_y_continuous(expand=expansion(mult=c(0, 0.05)),limits = c(0,350)) # space on top
+					+ theme(
+						  # hide grid lines
+						  panel.grid.major=element_blank(),
+						  panel.grid.minor=element_blank(),
+						  # show axis lines
+						  axis.line=element_line(colour='black')))),
+				  stripes = upset_stripes(
+					geom=geom_segment(size=12),  # make the stripes larger
+					colors=c('grey95', 'white')),
+				  # to prevent connectors from getting the colorured
+				  # use `fill` instead of `color`, together with `shape='circle filled'`
+				  matrix = intersection_matrix(
+					geom=geom_point(
+					  shape='circle filled',
+					  size=3,
+					  stroke=0.45)),
+				  sort_sets=FALSE,
+				  sort_intersections='descending'
+				)
+
+upset_gene <- upset_gene + ggtitle(paste0("E.21D.Y vs S.21D.Y, FDRq < ", format(thresh, nsmall = 2),
+                                          ", |LFC| > ", format(myLfc, nsmall = 2)))
+
+# save
+pdf(paste0("../results/filtering_comparison/E.21D.Y_vs_S.21D.Y_FDRq_", format(thresh, nsmall = 2), 
+           "_LFC_", format(myLfc, nsmall = 2), "_upset.pdf"), 
+    height = 6, width = 10)
+upset_gene
+```
+
+### Extract
+```{r}
+# convert the gene sets into a binary matrix (like UpSet plot input)
+upset_data <- UpSetR::fromList(list_input)
+
+# call the function to extract the exclusive intersection genes
+exclusive_intersection_results <- get_exclusive_intersection_genes(upset_data, list_input)
+
+# convert the list to a data.frame with two columns: Total genes and gene list
+exclusive_intersection_df <- do.call(rbind, lapply(names(exclusive_intersection_results), function(x) {
+  data.frame(
+    Intersection = x,
+    Total_Genes = exclusive_intersection_results[[x]]$total_genes,
+    Gene_List = exclusive_intersection_results[[x]]$gene_list,
+    stringsAsFactors = FALSE
+  )
+}))
+exclusive_intersection_df <- 
+  exclusive_intersection_df[order(exclusive_intersection_df$Total_Genes, decreasing = TRUE),]
+
+# save
+write.table(x = exclusive_intersection_df,
+            file = paste0("../results/filtering_comparison/E.21D.Y_vs_S.21D.Y_FDRq_", 
+                          format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), 
+                          "_results.tsv"),
+            sep = "\t",
+            quote = FALSE,
+            col.names = TRUE,
+            row.names = FALSE)
+```
+
+
+## E.21D.O vs S.21D.O
+### Plot
+```{r}
+# set variables
+thresh <- 0.05
+myLfc <- 0
+model <- "DEGs_with_hbb/"
+
+# read tables
+ss_filt <- read.delim(
+  paste0("../results/sex_specific_filtering_but_both_sexes_comparison/", 
+         model, "DEG_tables/E.21D.O_vs_S.21D.O_FDRq_1.00_LFC_0.00.tsv"))
+bs_filt <- read.delim(
+  paste0("../results/filtered_samples_both_sexes/", 
+         model, "DEG_tables/E.21D.O_vs_S.21D.O_FDRq_1.00_LFC_0.00.tsv"))
+rownames(ss_filt) <- ss_filt$gene_name_unique
+rownames(bs_filt) <- bs_filt$gene_name_unique
+
+# filter on pval
+ss_filt <- ss_filt[ss_filt$adj.P.Val < thresh,]
+bs_filt <- bs_filt[bs_filt$adj.P.Val < thresh,]
+
+# Subset lists
+ss_filt.up <- subset(ss_filt$gene_name_unique, ss_filt$logFC > myLfc)
+ss_filt.down <- subset(ss_filt$gene_name_unique, ss_filt$logFC < -myLfc)
+bs_filt.up <- subset(bs_filt$gene_name_unique, bs_filt$logFC > myLfc)
+bs_filt.down <- subset(bs_filt$gene_name_unique, bs_filt$logFC < -myLfc)
+list_input <- list("both sexes filtering, up-regulated" = bs_filt.up,
+                   "sex specific filtering, up-regulated" = ss_filt.up,
+                   "both sexes filtering, down-regulated" = bs_filt.down,
+                   "sex specific filtering, down-regulated" = ss_filt.down)
+data <- fromList(list_input)
+  
+# store names
+names <- colnames(data)
+  
+# plot
+upset_gene <- ComplexUpset::upset(data, 
+				  names,
+				  set_sizes=(
+					upset_set_size()
+					+ geom_text(aes(label=..count..), hjust=1.1, stat='count')
+					+ expand_limits(y=400)),
+				  queries = list(upset_query("both sexes filtering, up-regulated", fill = "red"),
+								 upset_query("sex specific filtering, up-regulated", fill = "red"),
+								 upset_query("8 hr Low Dose Psilocybin vs Saline Down-regulated", fill = "blue"),
+								 upset_query("both sexes filtering, down-regulated", fill = "blue"),
+								 upset_query("sex specific filtering, down-regulated", fill = "blue")),
+				  base_annotations = list('Intersection size' = (
+					intersection_size(bar_number_threshold=1, width=0.5)
+					+ scale_y_continuous(expand=expansion(mult=c(0, 0.05)),limits = c(0,350)) # space on top
+					+ theme(
+						  # hide grid lines
+						  panel.grid.major=element_blank(),
+						  panel.grid.minor=element_blank(),
+						  # show axis lines
+						  axis.line=element_line(colour='black')))),
+				  stripes = upset_stripes(
+					geom=geom_segment(size=12),  # make the stripes larger
+					colors=c('grey95', 'white')),
+				  # to prevent connectors from getting the colorured
+				  # use `fill` instead of `color`, together with `shape='circle filled'`
+				  matrix = intersection_matrix(
+					geom=geom_point(
+					  shape='circle filled',
+					  size=3,
+					  stroke=0.45)),
+				  sort_sets=FALSE,
+				  sort_intersections='descending'
+				)
+
+upset_gene <- upset_gene + ggtitle(paste0("E.21D.O vs S.21D.O, FDRq < ", format(thresh, nsmall = 2),
+                                          ", |LFC| > ", format(myLfc, nsmall = 2)))
+
+# save
+pdf(paste0("../results/filtering_comparison/E.21D.O_vs_S.21D.O_FDRq_", format(thresh, nsmall = 2), 
+           "_LFC_", format(myLfc, nsmall = 2), "_upset.pdf"), 
+    height = 6, width = 10)
+upset_gene
+```
+
+### Extract
+```{r}
+# convert the gene sets into a binary matrix (like UpSet plot input)
+upset_data <- UpSetR::fromList(list_input)
+
+# call the function to extract the exclusive intersection genes
+exclusive_intersection_results <- get_exclusive_intersection_genes(upset_data, list_input)
+
+# convert the list to a data.frame with two columns: Total genes and gene list
+exclusive_intersection_df <- do.call(rbind, lapply(names(exclusive_intersection_results), function(x) {
+  data.frame(
+    Intersection = x,
+    Total_Genes = exclusive_intersection_results[[x]]$total_genes,
+    Gene_List = exclusive_intersection_results[[x]]$gene_list,
+    stringsAsFactors = FALSE
+  )
+}))
+exclusive_intersection_df <- 
+  exclusive_intersection_df[order(exclusive_intersection_df$Total_Genes, decreasing = TRUE),]
+
+# save
+write.table(x = exclusive_intersection_df,
+            file = paste0("../results/filtering_comparison/E.21D.O_vs_S.21D.O_FDRq_", 
+                          format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), 
+                          "_results.tsv"),
+            sep = "\t",
+            quote = FALSE,
+            col.names = TRUE,
+            row.names = FALSE)
+```
+
+
+
+# '
+# '
+# '
 # Upset Both Sexes
 ## Low dose
 ### Plot

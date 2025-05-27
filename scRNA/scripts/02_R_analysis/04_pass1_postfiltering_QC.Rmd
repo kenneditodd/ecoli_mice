@@ -2,7 +2,7 @@
 title: "E. coli Mice scRNAseq"
 subtitle: "Postfiltering QC"
 author: "Kennedi Todd"
-date: "01/28/2025"
+date: "03/18/2025"
 output:
   html_document:
     code_folding: hide
@@ -34,21 +34,15 @@ library(stringr)     # str_match()
 
 ## Variables and functions
 ```{r set_variables_and_thresholds}
-# variables
-out <- "../../results/with_integration/pass1/"
-
-# thresholds
-nCount.min <- 400
-nCount.max <- 20000
-nFeature.min <- 250
-complexity.cutoff <- 0.8
-mt.cutoff <- 10
-hb.cutoff <- 1
+# source thresholds and output paths
+source("../../refs/thresholds_and_outs.R")
+out <- paste0(out, "pass1/")
 ```
 
 ## Load data
 ```{r load_data}
-mouse.filtered <- readRDS("../../rObjects/seurat_obj_filtered.rds")
+mouse.filtered <- readRDS(paste0( "../../rObjects/seurat_obj_filtered_", 
+                                  filtering_method, "_pass1.rds"))
 ```
 
 # Post-filtering QC
@@ -65,18 +59,17 @@ ncells2 <- ggplot(data, aes(x = sample, y = frequency, fill = sample)) +
             vjust=-0.25) +
   #scale_fill_manual(values = sample_colors) + 
   scale_y_continuous(breaks = seq(0,12000, by = 2000), limits = c(0,12000)) +
-  ggtitle("Raw: cells per sample") +
+  ggtitle("Filtered: cells per sample") +
   theme(legend.position =  "none") + 
   theme(axis.text.x = element_text(angle = 45, hjust=1))
 ncells2
 ```
 
-```{r save_cells_per_sample,echo=FALSE,eval=FALSE}
+```{r save_cells_per_sample}
 # save
 pdf(paste0(out, "filtering_QC/ncells_filtered.pdf"),
     width = 18, height = 4)
 ncells2
-dev.off()
 
 # cleanup
 remove(ncells2)
@@ -188,11 +181,10 @@ layout <- rbind(c(1,4),c(2,5),c(3,6))
 grid <- grid.arrange(grobs = plots, layout_matrix = layout)
 ```
 
-```{r save_postfiltering_density, echo=FALSE, eval=FALSE, warning=FALSE}
+```{r save_postfiltering_density, warning=FALSE}
 # save
 pdf(paste0(out, "filtering_QC/density_curves_filtered.pdf"), width = 8, height = 8)
 grid <- grid.arrange(grobs = plots, layout_matrix = layout)
-dev.off()
 
 # cleanup
 remove(den1,den2,den3,den4,den5,den6,plots,layout,grid)
@@ -219,16 +211,16 @@ v4 <- VlnPlot(mouse.filtered,
 v4
 ```
 
-```{r save_postfiltering_violins, echo=FALSE, eval=FALSE}
-# save
-path <- paste0(out, "filtering_QC/violins_nFeature_nCount_complexity_filtered.pdf")
-pdf(path, width = 12, height = 12)
+```{r save_postfiltering_violins}
+# save v3
+pdf(paste0(out, "filtering_QC/violins_nFeature_nCount_complexity_filtered.pdf"), 
+    width = 12, height = 12)
 v3
 dev.off()
 
-# save
-path <- paste0(out, "filtering_QC/violins_percent_filtered.pdf")
-pdf(path, width = 12, height = 2)
+# save v4
+pdf(paste0(out, "filtering_QC/violins_percent_filtered.pdf"),
+    width = 12, height = 12)
 v4
 dev.off()
 
@@ -237,7 +229,7 @@ remove(v3,v4)
 ```
 
 ## Scatter plots
-```{r postfiltering_scatter}
+```{r postfiltering_scatter, warning=FALSE}
 s4 <- ggplot(
   mouse.filtered@meta.data,
   aes(x = nCount_RNA, y = nFeature_RNA, color = percent_mt)) + 
@@ -275,7 +267,7 @@ s6 <- ggplot(
 s6
 ```
 
-```{r save_postfiltering_scatter,echo=FALSE,eval=FALSE}
+```{r save_postfiltering_scatter}
 # save
 path <- paste0(out, "filtering_QC/scatter_nFeature_vs_nCount_filtered.pdf")
 pdf(path, width = 18, height = 18)
@@ -312,7 +304,7 @@ b1 <- ggplot(mouse.filtered@meta.data,
 b1
 ```
 
-```{r save_boxplot, echo=FALSE, eval=FALSE}
+```{r save_boxplot}
 # save
 path <- paste0(out, "filtering_QC/boxplot_nFeature_per_sample.pdf")
 pdf(path, width = 12, height = 6)
@@ -332,7 +324,7 @@ rownames(df) <- 1:nrow(df)
 head(df, 10)
 ```
 
-```{r save_top_transcripts, echo=FALSE, eval=FALSE}
+```{r save_top_transcripts}
 write.table(df, 
             paste0(out, "filtering_QC/top_transcripts.tsv"),
             quote = FALSE,

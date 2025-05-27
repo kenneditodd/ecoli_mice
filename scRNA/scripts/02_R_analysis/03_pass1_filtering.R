@@ -4,13 +4,9 @@ library(dplyr)
 library(Seurat)
 setwd(".")
 
-# thresholds
-nCount.min <- 400
-nCount.max <- 20000
-nFeature.min <- 250
-complexity.cutoff <- 0.8
-mt.cutoff <- 10
-hb.cutoff <- 1
+# source thresholds and output paths
+source("../../refs/thresholds_and_outs.R")
+out <- paste0(out, "pass1/")
 
 # load the environment variables
 load_dot_env(file = "../../refs/.env")
@@ -20,7 +16,7 @@ ann_dir <- Sys.getenv("ANNOTATION_REFS")
 if (file.exists("../../rObjects/annotation.rds")) {
   genes <- readRDS("../../rObjects/annotation.rds")
 } else {
-  file <- paste0(ann_dir, "/refdata-gex-GRCm39-2024-A/genes/genes.gtf.gz")
+  file <- paste0(ann_dir, "/refdata-gex-GRCm39-2024-A/genes/genes.gtf")
   genes <- rtracklayer::import(file)
   genes <- as.data.frame(genes)
   saveRDS(genes, "../../rObjects/annotation.rds")
@@ -29,9 +25,16 @@ if (file.exists("../../rObjects/annotation.rds")) {
 # load data
 mouse <- readRDS("../../rObjects/seurat_obj_before_filtering.rds")
 
-# reorder columns
+# set sample levels
 new_order <- mouse@meta.data %>%
-  arrange(treatment, timepoint_days, age, sex, animal_id) %>%
+  arrange(timepoint_days, age, treatment, sex, animal_id) %>%
+  select(sample)
+new_order <- unique(new_order$sample)
+mouse$sample <- factor(mouse$sample, levels = new_order)
+
+# reorder cell columns
+new_order <- mouse@meta.data %>%
+  arrange(timepoint_days, age,treatment, sex, animal_id) %>%
   rownames()
 mouse <- mouse[, new_order]
 
@@ -81,4 +84,6 @@ print(paste0(dim(counts)[1] - dim(counts.filtered)[1], " features removed"))
 remove(mouse,counts,counts.filtered,nonzero)
 
 # save
-saveRDS(mouse.filtered, "../../rObjects/seurat_obj_filtered.rds")
+saveRDS(object = mouse.filtered, 
+        file = paste0( "../../rObjects/seurat_obj_filtered_", filtering_method, "_pass1.rds"), 
+        compress = FALSE)

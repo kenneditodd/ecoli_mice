@@ -38,8 +38,8 @@ library(UpSetR)       # fromList()
 ## Variables and functions
 ```{r set_variables_and_functions}
 # variables
-out <- "../../results/with_integration/pass1/reclusters/group1/"
-keep_clusters <- c("Oligodendrocytes","OPCs")
+out <- "../../results/with_integration/pass1/reclusters/microglia/"
+keep_clusters <- c("Microglia")
 
 # single cell functions
 files <- list.files("../../functions", full.names = TRUE)
@@ -51,7 +51,7 @@ invisible(lapply(files, source))
 mouse.annotated <- readRDS("../../rObjects/seurat_obj_annotated.rds")
 ```
 
-# Recluster group 1
+# Recluster
 ## Subset
 ```{r subset_endothelial}
 # subset clusters
@@ -78,40 +78,42 @@ seurat_subset[["RNA"]] <- split(seurat_subset[["RNA"]],
 
 # transform
 options(future.globals.maxSize = 8000 * 1024^2)
-seurat_subset <- SCTransform(seurat_subset, 
-                              verbose = FALSE)
+seurat_subset <- SCTransform(seurat_subset, verbose = FALSE)
 
 # PCA
 seurat_subset <- RunPCA(object = seurat_subset, assay = "SCT")
+DefaultAssay(seurat_subset) <- "SCT"
 
-# Plot PC elbow
-ElbowPlot(seurat_subset, reduction = "pca") +
-  geom_vline(xintercept = 10, linetype = "dashed", color = "red")
+# integrate
+Idents(seurat_subset) <- "sample"
+seurat_subset <- IntegrateLayers(object = seurat_subset,
+                                 method = "HarmonyIntegration",
+                                 assay = "SCT")
 
-# join layers
+# re-join layers
 seurat_subset[["RNA"]] <- JoinLayers(seurat_subset[["RNA"]])
 
 # run UMAP
 seurat_subset <- RunUMAP(seurat_subset,
-                 dims = 1:10,
-                 reduction = "pca",
-                 n.components = 3) # set to 3 to use with VR
+                         dims = 1:10,
+                         reduction = "harmony",
+                         n.components = 3)
 
 # Determine the K-nearest neighbor graph
 seurat_subset <- FindNeighbors(object = seurat_subset,
-                                   assay = "SCT",
-                                   reduction = "pca",
-                                   dims = 1:10)
+                               assay = "SCT",
+                               reduction = "harmony",
+                               dims = 1:10)
 
 # Determine the clusters for various resolutions
-seurat_subset <- FindClusters(object = seurat_subset.unannotated,
-                                  algorithm = 1,
-                                  resolution = seq(0.1, 0.5, by = 0.1))
+seurat_subset <- FindClusters(object = seurat_subset,
+                              algorithm = 1,
+                              resolution = seq(0.1, 0.5, by = 0.1))
 ```
 
 ## UMAP
 ```{r}
-seurat_subset$seurat_clusters <- seurat_subset$SCT_snn_res.0.2
+seurat_subset$seurat_clusters <- seurat_subset$SCT_snn_res.0.1
 Idents(seurat_subset) <- "seurat_clusters"
 DefaultAssay(seurat_subset) <- "RNA"
 seurat_subset <- NormalizeData(seurat_subset)
@@ -210,6 +212,12 @@ f6 <- FeaturePlot(seurat_subset,
                   features = "percent_hb") + 
   scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
 f6
+
+f7 <- FeaturePlot(seurat_subset, 
+                  reduction = "umap",
+                  features = "Mbp") + 
+  scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
+f7
 ```
 
 ```{r save_feature_plots, echo=FALSE, eval=FALSE}
@@ -268,13 +276,30 @@ v1 <- VlnPlot(seurat_subset,
               stack = TRUE,
               flip = TRUE)
 v1
+
+canonical <- c("Aldoc","Gja1","C1qa","Ptprc","Cldn5","Flt1","Ttr",
+               "Mog","Mag","Mbp","Syt1","Gad1","Rgs5","Pdgfrb","Olig1",
+               "Tnr","Col1a1","Dcn","Stmn1","Sox11")
+v2 <- VlnPlot(seurat_subset,
+              features = canonical,
+              split.by = "seurat_clusters",
+              group.by = "seurat_clusters",
+              cols = cluster_colors,
+              stack = TRUE,
+              flip = TRUE)
+v2
 ```
 
 ```{r save_auto_markers_violin}
 pdf(paste0(out, "auto_markers_violin.pdf"), width = 6, height = 6)
 v1
 dev.off()
-remove(v1,top3,markers)
+
+pdf(paste0(out, "canonical_violin.pdf"), width = 5, height = 6)
+v2
+dev.off()
+
+remove(v1,v2,top3,markers)
 ```
 
 ## Manual markers

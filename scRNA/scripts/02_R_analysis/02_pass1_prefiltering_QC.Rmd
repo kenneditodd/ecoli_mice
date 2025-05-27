@@ -2,7 +2,7 @@
 title: "E. coli Mice scRNAseq"
 subtitle: "Prefiltering QC"
 author: "Kennedi Todd"
-date: "01/28/2025"
+date: "05/13/2025"
 output:
   html_document:
     code_folding: hide
@@ -34,20 +34,9 @@ library(stringr)     # str_match()
 
 ## Variables and functions
 ```{r set_variables_and_thresholds}
-# variables
-out <- "../../results/with_integration/pass1/"
-
-# thresholds
-nCount.min <- 400
-nCount.max <- 20000
-nFeature.min <- 250
-complexity.cutoff <- 0.8
-mt.cutoff <- 10
-hb.cutoff <- 1
-
-# single cell functions
-files <- list.files("../../functions", full.names = TRUE)
-invisible(lapply(files, source))
+# source thresholds and output paths
+source("../../refs/thresholds_and_outs.R")
+out <- paste0(out, "pass1/")
 ```
 
 ## Load data
@@ -55,16 +44,16 @@ invisible(lapply(files, source))
 # load data
 mouse <- readRDS("../../rObjects/seurat_obj_before_filtering.rds")
 
-# reorder
+# set sample levels
 new_order <- mouse@meta.data %>%
-  arrange(treatment, timepoint_days, age, sex, animal_id) %>%
+  arrange(timepoint_days, age, treatment, sex, animal_id) %>%
   select(sample)
 new_order <- unique(new_order$sample)
 mouse$sample <- factor(mouse$sample, levels = new_order)
 
-# reorder columns
+# reorder cell columns
 new_order <- mouse@meta.data %>%
-  arrange(treatment, timepoint_days, age, sex, animal_id) %>%
+  arrange(timepoint_days, age,treatment, sex, animal_id) %>%
   rownames()
 mouse <- mouse[, new_order]
 ```
@@ -82,20 +71,20 @@ ncells1 <- ggplot(data, aes(x = sample, y = frequency, fill = sample)) +
   geom_text(aes(label = frequency), 
             position=position_dodge(width=0.9), 
             vjust=-0.25) +
-  #scale_fill_manual(values = sample_colors) + 
-  scale_y_continuous(breaks = seq(0,12000, by = 2000), limits = c(0,12000)) +
+  scale_y_continuous(breaks = seq(0,20000, by = 2000), limits = c(0,20000)) +
   ggtitle("Raw: cells per sample") +
   theme(legend.position =  "none") + 
   theme(axis.text.x = element_text(angle = 45, hjust=1))
 ncells1
+
+remove(data)
 ```
 
 ```{r save_prefiltering_ncells}
 # save
 pdf(paste0(out, "filtering_QC/ncells_raw.pdf"), 
-    width = 18, height = 4)
+    width = 20, height = 4)
 ncells1
-dev.off()
 
 # cleanup
 remove(ncells1)
@@ -145,9 +134,7 @@ den3 <- ggplot(mouse@meta.data,
            fill = sample)) +
   geom_density(alpha = 0.2) +
   theme_classic() +
-  #scale_color_manual(values = sample_colors) +
   theme(legend.position =  "none") +
-  #scale_fill_manual(values = sample_colors) +
   xlab("Cell Complexity (log10(nFeature/nCount))") +
   ylab("Density") +
   geom_vline(xintercept = complexity.cutoff, lty = "dashed") +
@@ -207,7 +194,7 @@ layout <- rbind(c(1,4),c(2,5),c(3,6))
 grid <- grid.arrange(grobs = plots, layout_matrix = layout)
 ```
 
-```{r save_prefiltering_density,echo=FALSE,eval=FALSE}
+```{r save_prefiltering_density}
 # save
 pdf(paste0(out, "filtering_QC/density_curves_raw.pdf"), width = 8, height = 8)
 grid <- grid.arrange(grobs = plots, layout_matrix = layout)
@@ -238,7 +225,7 @@ v2 <- VlnPlot(mouse,
 v2
 ```
 
-```{r save_prefiltering_violins, echo=FALSE, eval=FALSE}
+```{r save_prefiltering_violins}
 # save v1
 pdf(paste0(out, "filtering_QC/violins_nFeature_nCount_complexity_raw.pdf"), 
     width = 12, height = 12)
@@ -298,7 +285,7 @@ s3 <- ggplot(
 s3
 ```
 
-```{r save_prefiltering_scatter, echo=FALSE, eval=TRUE, warning=FALSE, message=FALSE}
+```{r save_prefiltering_scatter, warning=FALSE, message=FALSE}
 # save
 pdf(paste0(out, "filtering_QC/scatter_nFeature_vs_nCount_raw.pdf"),
     width = 18, height = 18)

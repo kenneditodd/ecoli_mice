@@ -18,7 +18,7 @@ samples <- gtools::mixedsort(samples)
 if (file.exists("../../rObjects/annotation.rds")) {
   genes <- readRDS("../../rObjects/annotation.rds")
 } else {
-  file <- paste0(ann_dir, "/refdata-gex-GRCm39-2024-A/genes/genes.gtf.gz")
+  file <- paste0(ann_dir, "/refdata-gex-GRCm39-2024-A/genes/genes.gtf")
   genes <- rtracklayer::import(file)
   genes <- as.data.frame(genes)
   saveRDS(genes, "../../rObjects/annotation.rds")
@@ -28,62 +28,52 @@ if (file.exists("../../rObjects/annotation.rds")) {
 meta <- readRDS("../../rObjects/meta.rds")
 
 # read counts and create seurat obj
-seurat_obj_list <- list()
-if (file.exists(paste0("../../rObjects/seurat_obj_merged_10x.rds"))) {
-  mouse <- readRDS(paste0("../../rObjects/seurat_obj_merged_10x.rds"))
-} else {
+prefix <- "../../counts/"
+suffix <- "_cellbender_filtered.h5"
   
-  # path info
-  prefix <- "../../counts/"
-  suffix <- "/outs/filtered_feature_bc_matrix.h5"
-  
-  # create list of individual seurat objects
-  for (i in 1:length(samples)) {
-    print(i)
-    sample <- samples[i]
+# create list of individual seurat objects
+for (i in 1:length(samples)) {
+  print(i)
+  sample <- samples[i]
     
-    # Create Seurat object with PIPseeker output
-    obj <- CreateSeuratObject(
-      Read10X_h5(paste0(prefix, sample, suffix))
+  # Create Seurat object with PIPseeker output
+  obj <- CreateSeuratObject(
+    Read_CellBender_h5_Mat(paste0(prefix, sample, "/outs/", sample, suffix))
     )
+  # Add sample ID as prefix to cell names
+  obj <- RenameCells(obj, add.cell.id = sample)
     
-    # Add sample ID as prefix to cell names
-    obj <- RenameCells(obj, add.cell.id = sample)
+  # Add Seurat object to the list with the sample name as the key
+  seurat_obj_list[[sample]] <- obj
     
-    # Add Seurat object to the list with the sample name as the key
-    seurat_obj_list[[sample]] <- obj
-    
-    # cleanup - helps with memory
-    remove(obj)
-    gc()
-  }
-  
-  # Merge all Seurat objects
-  mouse <- merge(seurat_obj_list[[1]], 
-                 y = seurat_obj_list[-1])
-  
-  # Set project name
-  mouse@project.name <- "E.coli Mice scRNAseq"
-  
-  # Join layers
-  mouse$orig.ident <- colnames(mouse)
-  mouse <- JoinLayers(mouse)
-  
-  # Extract animal_id
-  mouse$animal_id <- str_match(colnames(mouse), "[oldyung]+_[fesm]+_([0-9]+)_.+")[,2]
-  
-  # Check
-  table(mouse$animal_id)
-  
-  # Add meta
-  mouse@meta.data <- left_join(x = mouse@meta.data, y = meta, by = "animal_id")
-  rownames(mouse@meta.data) <- mouse$orig.ident
-  
-  # cleanup
-  remove(meta, seurat_obj_list)
+  # cleanup - helps with memory
+  remove(obj)
   gc()
+}
   
-} # end of else statement
+# Merge all Seurat objects
+mouse <- merge(seurat_obj_list[[1]], y = seurat_obj_list[-1])
+  
+# Set project name
+mouse@project.name <- "E.coli Mice scRNAseq"
+  
+# Join layers
+mouse$orig.ident <- colnames(mouse)
+mouse <- JoinLayers(mouse)
+  
+# Extract animal_id
+mouse$animal_id <- str_match(colnames(mouse), "[oldyung]+_[fesm]+_([0-9]+)_.+")[,2]
+  
+# Check
+table(mouse$animal_id)
+  
+# Add meta
+mouse@meta.data <- left_join(x = mouse@meta.data, y = meta, by = "animal_id")
+rownames(mouse@meta.data) <- mouse$orig.ident
+  
+# cleanup
+remove(meta, seurat_obj_list)
+gc()
 
 # preview
 mouse
@@ -117,5 +107,5 @@ hb.genes <- c("Hba-x","Hba-a1","Hba-a2","Hbb-bt","Hbb-bs","Hbb-bh2","Hbb-bh1","H
 mouse$percent_hb <- PercentageFeatureSet(mouse, features = hb.genes)
 hb.genes
 
-# save
-saveRDS(mouse, "../../rObjects/seurat_obj_before_filtering.rds")
+# save with compression
+saveRDS(mouse, "../../rObjects/seurat_obj_before_filtering.rds", compress = FALSE)

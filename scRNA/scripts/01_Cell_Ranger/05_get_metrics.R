@@ -27,6 +27,13 @@ for (i in 1:length(locations)) {
 # rename rows
 rownames(df) <- samples
 
+# remove commas
+df[c(1:4,19,20)] <- lapply(df[2:4], function(col) {
+  as.numeric(gsub(",", "", col))
+})
+
+
+
 # rename columns
 df <- df %>%
   rename(

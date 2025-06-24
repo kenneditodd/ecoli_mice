@@ -1,49 +1,49 @@
-sample_name	organism	breed	age	collection_date	geo_loc_name	sex	tissue	animal_id	treatment	timepoint_days
-S.2D.Y.F.50	Mus musculus	C57BL/6	3 months	2024-10-23	USA: Arizona	Female	brain	50	saline	2
-S.2D.Y.F.54	Mus musculus	C57BL/6	3 months	2024-10-23	USA: Arizona	Female	brain	54	saline	2
-S.2D.Y.F.59	Mus musculus	C57BL/6	3 months	2024-10-23	USA: Arizona	Female	brain	59	saline	2
-S.2D.Y.M.1	Mus musculus	C57BL/6	3 months	2024-10-24	USA: Arizona	Male	brain	1	saline	2
-S.2D.Y.M.11	Mus musculus	C57BL/6	3 months	2024-10-24	USA: Arizona	Male	brain	11	saline	2
-S.2D.Y.M.6	Mus musculus	C57BL/6	3 months	2024-10-24	USA: Arizona	Male	brain	6	saline	2
-S.2D.O.F.143	Mus musculus	C57BL/6	6 months	2024-10-23	USA: Arizona	Female	brain	143	saline	2
-S.2D.O.F.148	Mus musculus	C57BL/6	6 months	2024-10-23	USA: Arizona	Female	brain	148	saline	2
-S.2D.O.F.153	Mus musculus	C57BL/6	6 months	2024-10-23	USA: Arizona	Female	brain	153	saline	2
-S.2D.O.M.103	Mus musculus	C57BL/6	6 months	2024-10-24	USA: Arizona	Male	brain	103	saline	2
-S.2D.O.M.107	Mus musculus	C57BL/6	6 months	2024-10-24	USA: Arizona	Male	brain	107	saline	2
-S.2D.O.M.97	Mus musculus	C57BL/6	6 months	2024-10-24	USA: Arizona	Male	brain	97	saline	2
-S.21D.Y.F.61	Mus musculus	C57BL/6	3 months	2024-11-12	USA: Arizona	Female	brain	61	saline	21
-S.21D.Y.F.66	Mus musculus	C57BL/6	3 months	2024-11-12	USA: Arizona	Female	brain	66	saline	21
-S.21D.Y.F.71	Mus musculus	C57BL/6	3 months	2024-11-12	USA: Arizona	Female	brain	71	saline	21
-S.21D.Y.M.13	Mus musculus	C57BL/6	3 months	2024-11-13	USA: Arizona	Male	brain	13	saline	21
-S.21D.Y.M.18	Mus musculus	C57BL/6	3 months	2024-11-13	USA: Arizona	Male	brain	18	saline	21
-S.21D.Y.M.23	Mus musculus	C57BL/6	3 months	2024-11-13	USA: Arizona	Male	brain	23	saline	21
-S.21D.O.F.155	Mus musculus	C57BL/6	6 months	2024-11-12	USA: Arizona	Female	brain	155	saline	21
-S.21D.O.F.160	Mus musculus	C57BL/6	6 months	2024-11-12	USA: Arizona	Female	brain	160	saline	21
-S.21D.O.F.164	Mus musculus	C57BL/6	6 months	2024-11-12	USA: Arizona	Female	brain	164	saline	21
-S.21D.O.M.110	Mus musculus	C57BL/6	6 months	2024-11-13	USA: Arizona	Male	brain	110	saline	21
-S.21D.O.M.113	Mus musculus	C57BL/6	6 months	2024-11-13	USA: Arizona	Male	brain	113	saline	21
-S.21D.O.M.116	Mus musculus	C57BL/6	6 months	2024-11-13	USA: Arizona	Male	brain	116	saline	21
-E.2D.Y.F.73	Mus musculus	C57BL/6	3 months	2024-10-23	USA: Arizona	Female	brain	73	ecoli	2
-E.2D.Y.F.78	Mus musculus	C57BL/6	3 months	2024-10-23	USA: Arizona	Female	brain	78	ecoli	2
-E.2D.Y.F.83	Mus musculus	C57BL/6	3 months	2024-10-23	USA: Arizona	Female	brain	83	ecoli	2
-E.2D.Y.M.25	Mus musculus	C57BL/6	3 months	2024-10-24	USA: Arizona	Male	brain	25	ecoli	2
-E.2D.Y.M.30	Mus musculus	C57BL/6	3 months	2024-10-24	USA: Arizona	Male	brain	30	ecoli	2
-E.2D.Y.M.35	Mus musculus	C57BL/6	3 months	2024-10-24	USA: Arizona	Male	brain	35	ecoli	2
-E.2D.O.F.168	Mus musculus	C57BL/6	6 months	2024-10-23	USA: Arizona	Female	brain	168	ecoli	2
-E.2D.O.F.173	Mus musculus	C57BL/6	6 months	2024-10-23	USA: Arizona	Female	brain	173	ecoli	2
-E.2D.O.F.178	Mus musculus	C57BL/6	6 months	2024-10-23	USA: Arizona	Female	brain	178	ecoli	2
-E.2D.O.M.120	Mus musculus	C57BL/6	6 months	2024-10-24	USA: Arizona	Male	brain	120	ecoli	2
-E.2D.O.M.123	Mus musculus	C57BL/6	6 months	2024-10-24	USA: Arizona	Male	brain	123	ecoli	2
-E.2D.O.M.128	Mus musculus	C57BL/6	6 months	2024-10-24	USA: Arizona	Male	brain	128	ecoli	2
-E.21D.Y.F.85	Mus musculus	C57BL/6	3 months	2024-11-12	USA: Arizona	Female	brain	85	ecoli	21
-E.21D.Y.F.90	Mus musculus	C57BL/6	3 months	2024-11-12	USA: Arizona	Female	brain	90	ecoli	21
-E.21D.Y.F.95	Mus musculus	C57BL/6	3 months	2024-11-12	USA: Arizona	Female	brain	95	ecoli	21
-E.21D.Y.M.37	Mus musculus	C57BL/6	3 months	2024-11-13	USA: Arizona	Male	brain	37	ecoli	21
-E.21D.Y.M.42	Mus musculus	C57BL/6	3 months	2024-11-13	USA: Arizona	Male	brain	42	ecoli	21
-E.21D.Y.M.47	Mus musculus	C57BL/6	3 months	2024-11-13	USA: Arizona	Male	brain	47	ecoli	21
-E.21D.O.F.180	Mus musculus	C57BL/6	6 months	2024-11-12	USA: Arizona	Female	brain	180	ecoli	21
-E.21D.O.F.183	Mus musculus	C57BL/6	6 months	2024-11-12	USA: Arizona	Female	brain	183	ecoli	21
-E.21D.O.F.187	Mus musculus	C57BL/6	6 months	2024-11-12	USA: Arizona	Female	brain	187	ecoli	21
-E.21D.O.M.133	Mus musculus	C57BL/6	6 months	2024-11-13	USA: Arizona	Male	brain	133	ecoli	21
-E.21D.O.M.139	Mus musculus	C57BL/6	6 months	2024-11-13	USA: Arizona	Male	brain	139	ecoli	21
-E.21D.O.M.142	Mus musculus	C57BL/6	6 months	2024-11-13	USA: Arizona	Male	brain	142	ecoli	21
+sample_name	organism	breed	age	collection_date	geo_loc_name	sex	tissue	animal_id	treatment	timepoint_days	group	group2
+S.2D.Y.F.50	Mus musculus	C57BL/6	3 months	2024-10-23	USA: Arizona	Female	brain	50	saline	2	S.2D.Y	S.2D.Y.F
+S.2D.Y.F.54	Mus musculus	C57BL/6	3 months	2024-10-23	USA: Arizona	Female	brain	54	saline	2	S.2D.Y	S.2D.Y.F
+S.2D.Y.F.59	Mus musculus	C57BL/6	3 months	2024-10-23	USA: Arizona	Female	brain	59	saline	2	S.2D.Y	S.2D.Y.F
+S.2D.Y.M.1	Mus musculus	C57BL/6	3 months	2024-10-24	USA: Arizona	Male	brain	1	saline	2	S.2D.Y	S.2D.Y.M
+S.2D.Y.M.11	Mus musculus	C57BL/6	3 months	2024-10-24	USA: Arizona	Male	brain	11	saline	2	S.2D.Y	S.2D.Y.M
+S.2D.Y.M.6	Mus musculus	C57BL/6	3 months	2024-10-24	USA: Arizona	Male	brain	6	saline	2	S.2D.Y	S.2D.Y.M
+S.2D.O.F.143	Mus musculus	C57BL/6	6 months	2024-10-23	USA: Arizona	Female	brain	143	saline	2	S.2D.O	S.2D.O.F
+S.2D.O.F.148	Mus musculus	C57BL/6	6 months	2024-10-23	USA: Arizona	Female	brain	148	saline	2	S.2D.O	S.2D.O.F
+S.2D.O.F.153	Mus musculus	C57BL/6	6 months	2024-10-23	USA: Arizona	Female	brain	153	saline	2	S.2D.O	S.2D.O.F
+S.2D.O.M.103	Mus musculus	C57BL/6	6 months	2024-10-24	USA: Arizona	Male	brain	103	saline	2	S.2D.O	S.2D.O.M
+S.2D.O.M.107	Mus musculus	C57BL/6	6 months	2024-10-24	USA: Arizona	Male	brain	107	saline	2	S.2D.O	S.2D.O.M
+S.2D.O.M.97	Mus musculus	C57BL/6	6 months	2024-10-24	USA: Arizona	Male	brain	97	saline	2	S.2D.O	S.2D.O.M
+S.21D.Y.F.61	Mus musculus	C57BL/6	3 months	2024-11-12	USA: Arizona	Female	brain	61	saline	21	S.21D.Y	S.21D.Y.F
+S.21D.Y.F.66	Mus musculus	C57BL/6	3 months	2024-11-12	USA: Arizona	Female	brain	66	saline	21	S.21D.Y	S.21D.Y.F
+S.21D.Y.F.71	Mus musculus	C57BL/6	3 months	2024-11-12	USA: Arizona	Female	brain	71	saline	21	S.21D.Y	S.21D.Y.F
+S.21D.Y.M.13	Mus musculus	C57BL/6	3 months	2024-11-13	USA: Arizona	Male	brain	13	saline	21	S.21D.Y	S.21D.Y.M
+S.21D.Y.M.18	Mus musculus	C57BL/6	3 months	2024-11-13	USA: Arizona	Male	brain	18	saline	21	S.21D.Y	S.21D.Y.M
+S.21D.Y.M.23	Mus musculus	C57BL/6	3 months	2024-11-13	USA: Arizona	Male	brain	23	saline	21	S.21D.Y	S.21D.Y.M
+S.21D.O.F.155	Mus musculus	C57BL/6	6 months	2024-11-12	USA: Arizona	Female	brain	155	saline	21	S.21D.O	S.21D.O.F
+S.21D.O.F.160	Mus musculus	C57BL/6	6 months	2024-11-12	USA: Arizona	Female	brain	160	saline	21	S.21D.O	S.21D.O.F
+S.21D.O.F.164	Mus musculus	C57BL/6	6 months	2024-11-12	USA: Arizona	Female	brain	164	saline	21	S.21D.O	S.21D.O.F
+S.21D.O.M.110	Mus musculus	C57BL/6	6 months	2024-11-13	USA: Arizona	Male	brain	110	saline	21	S.21D.O	S.21D.O.M
+S.21D.O.M.113	Mus musculus	C57BL/6	6 months	2024-11-13	USA: Arizona	Male	brain	113	saline	21	S.21D.O	S.21D.O.M
+S.21D.O.M.116	Mus musculus	C57BL/6	6 months	2024-11-13	USA: Arizona	Male	brain	116	saline	21	S.21D.O	S.21D.O.M
+E.2D.Y.F.73	Mus musculus	C57BL/6	3 months	2024-10-23	USA: Arizona	Female	brain	73	ecoli	2	E.2D.Y	E.2D.Y.F
+E.2D.Y.F.78	Mus musculus	C57BL/6	3 months	2024-10-23	USA: Arizona	Female	brain	78	ecoli	2	E.2D.Y	E.2D.Y.F
+E.2D.Y.F.83	Mus musculus	C57BL/6	3 months	2024-10-23	USA: Arizona	Female	brain	83	ecoli	2	E.2D.Y	E.2D.Y.F
+E.2D.Y.M.25	Mus musculus	C57BL/6	3 months	2024-10-24	USA: Arizona	Male	brain	25	ecoli	2	E.2D.Y	E.2D.Y.M
+E.2D.Y.M.30	Mus musculus	C57BL/6	3 months	2024-10-24	USA: Arizona	Male	brain	30	ecoli	2	E.2D.Y	E.2D.Y.M
+E.2D.Y.M.35	Mus musculus	C57BL/6	3 months	2024-10-24	USA: Arizona	Male	brain	35	ecoli	2	E.2D.Y	E.2D.Y.M
+E.2D.O.F.168	Mus musculus	C57BL/6	6 months	2024-10-23	USA: Arizona	Female	brain	168	ecoli	2	E.2D.O	E.2D.O.F
+E.2D.O.F.173	Mus musculus	C57BL/6	6 months	2024-10-23	USA: Arizona	Female	brain	173	ecoli	2	E.2D.O	E.2D.O.F
+E.2D.O.F.178	Mus musculus	C57BL/6	6 months	2024-10-23	USA: Arizona	Female	brain	178	ecoli	2	E.2D.O	E.2D.O.F
+E.2D.O.M.120	Mus musculus	C57BL/6	6 months	2024-10-24	USA: Arizona	Male	brain	120	ecoli	2	E.2D.O	E.2D.O.M
+E.2D.O.M.123	Mus musculus	C57BL/6	6 months	2024-10-24	USA: Arizona	Male	brain	123	ecoli	2	E.2D.O	E.2D.O.M
+E.2D.O.M.128	Mus musculus	C57BL/6	6 months	2024-10-24	USA: Arizona	Male	brain	128	ecoli	2	E.2D.O	E.2D.O.M
+E.21D.Y.F.85	Mus musculus	C57BL/6	3 months	2024-11-12	USA: Arizona	Female	brain	85	ecoli	21	E.21D.Y	E.21D.Y.F
+E.21D.Y.F.90	Mus musculus	C57BL/6	3 months	2024-11-12	USA: Arizona	Female	brain	90	ecoli	21	E.21D.Y	E.21D.Y.F
+E.21D.Y.F.95	Mus musculus	C57BL/6	3 months	2024-11-12	USA: Arizona	Female	brain	95	ecoli	21	E.21D.Y	E.21D.Y.F
+E.21D.Y.M.37	Mus musculus	C57BL/6	3 months	2024-11-13	USA: Arizona	Male	brain	37	ecoli	21	E.21D.Y	E.21D.Y.M
+E.21D.Y.M.42	Mus musculus	C57BL/6	3 months	2024-11-13	USA: Arizona	Male	brain	42	ecoli	21	E.21D.Y	E.21D.Y.M
+E.21D.Y.M.47	Mus musculus	C57BL/6	3 months	2024-11-13	USA: Arizona	Male	brain	47	ecoli	21	E.21D.Y	E.21D.Y.M
+E.21D.O.F.180	Mus musculus	C57BL/6	6 months	2024-11-12	USA: Arizona	Female	brain	180	ecoli	21	E.21D.O	E.21D.O.F
+E.21D.O.F.183	Mus musculus	C57BL/6	6 months	2024-11-12	USA: Arizona	Female	brain	183	ecoli	21	E.21D.O	E.21D.O.F
+E.21D.O.F.187	Mus musculus	C57BL/6	6 months	2024-11-12	USA: Arizona	Female	brain	187	ecoli	21	E.21D.O	E.21D.O.F
+E.21D.O.M.133	Mus musculus	C57BL/6	6 months	2024-11-13	USA: Arizona	Male	brain	133	ecoli	21	E.21D.O	E.21D.O.M
+E.21D.O.M.139	Mus musculus	C57BL/6	6 months	2024-11-13	USA: Arizona	Male	brain	139	ecoli	21	E.21D.O	E.21D.O.M
+E.21D.O.M.142	Mus musculus	C57BL/6	6 months	2024-11-13	USA: Arizona	Male	brain	142	ecoli	21	E.21D.O	E.21D.O.M

@@ -42,20 +42,7 @@ out <- paste0(out, "pass1/")
 ## Load data
 ```{r read_seurat_obj}
 # load data
-mouse <- readRDS("../../rObjects/seurat_obj_before_filtering.rds")
-
-# set sample levels
-new_order <- mouse@meta.data %>%
-  arrange(timepoint_days, age, treatment, sex, animal_id) %>%
-  select(sample)
-new_order <- unique(new_order$sample)
-mouse$sample <- factor(mouse$sample, levels = new_order)
-
-# reorder cell columns
-new_order <- mouse@meta.data %>%
-  arrange(timepoint_days, age,treatment, sex, animal_id) %>%
-  rownames()
-mouse <- mouse[, new_order]
+mouse <- readRDS("../../rObjects/cellbender_merged_before_filtering.rds")
 ```
 
 # Pre-filtering QC
@@ -71,7 +58,7 @@ ncells1 <- ggplot(data, aes(x = sample, y = frequency, fill = sample)) +
   geom_text(aes(label = frequency), 
             position=position_dodge(width=0.9), 
             vjust=-0.25) +
-  scale_y_continuous(breaks = seq(0,20000, by = 2000), limits = c(0,20000)) +
+  scale_y_continuous(breaks = seq(0,18000, by = 2000), limits = c(0,18000)) +
   ggtitle("Raw: cells per sample") +
   theme(legend.position =  "none") + 
   theme(axis.text.x = element_text(angle = 45, hjust=1))

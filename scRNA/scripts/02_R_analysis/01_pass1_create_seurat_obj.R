@@ -27,20 +27,21 @@ if (file.exists("../../rObjects/annotation.rds")) {
 # read in meta
 meta <- readRDS("../../rObjects/meta.rds")
 
-# read counts and create seurat obj
-prefix <- "../../counts/"
-suffix <- "_cellbender_filtered.h5"
+# Initialize an empty list
+seurat_obj_list <- list()
   
 # create list of individual seurat objects
 for (i in 1:length(samples)) {
   print(i)
   sample <- samples[i]
     
-  # Create Seurat object with PIPseeker output
+  # Create Seurat object with Cell Ranger output
   obj <- CreateSeuratObject(
-    Read_CellBender_h5_Mat(paste0(prefix, sample, "/outs/", sample, suffix))
-    )
-  # Add sample ID as prefix to cell names
+    Read_CellBender_h5_Mat(paste0("../../counts/", sample, "/outs/", 
+                                  sample, "_cellbender_filtered.h5"))
+  )
+  
+  # Add sample as prefix to cell names
   obj <- RenameCells(obj, add.cell.id = sample)
     
   # Add Seurat object to the list with the sample name as the key
@@ -107,5 +108,19 @@ hb.genes <- c("Hba-x","Hba-a1","Hba-a2","Hbb-bt","Hbb-bs","Hbb-bh2","Hbb-bh1","H
 mouse$percent_hb <- PercentageFeatureSet(mouse, features = hb.genes)
 hb.genes
 
+# set sample levels
+new_order <- mouse@meta.data %>%
+  arrange(timepoint_days, age, treatment, sex, animal_id) %>%
+  select(sample)
+new_order <- new_order$sample
+new_order <- unique(new_order)
+mouse$sample <- factor(mouse$sample, levels = new_order)
+
+# reorder cell columns
+new_order <- mouse@meta.data %>%
+  arrange(timepoint_days, age,treatment, sex, animal_id) %>%
+  rownames()
+mouse <- mouse[, new_order]
+
 # save with compression
-saveRDS(mouse, "../../rObjects/seurat_obj_before_filtering.rds", compress = FALSE)
+saveRDS(mouse, "../../rObjects/cellbender_merged_before_filtering.rds", compress = FALSE)

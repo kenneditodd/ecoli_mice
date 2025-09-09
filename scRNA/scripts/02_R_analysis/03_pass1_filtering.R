@@ -23,20 +23,7 @@ if (file.exists("../../rObjects/annotation.rds")) {
 }
 
 # load data
-mouse <- readRDS("../../rObjects/seurat_obj_before_filtering.rds")
-
-# set sample levels
-new_order <- mouse@meta.data %>%
-  arrange(timepoint_days, age, treatment, sex, animal_id) %>%
-  select(sample)
-new_order <- unique(new_order$sample)
-mouse$sample <- factor(mouse$sample, levels = new_order)
-
-# reorder cell columns
-new_order <- mouse@meta.data %>%
-  arrange(timepoint_days, age,treatment, sex, animal_id) %>%
-  rownames()
-mouse <- mouse[, new_order]
+mouse <- readRDS("../../rObjects/cellbender_merged_before_filtering.rds")
 
 # filter
 mouse.filtered <- subset(mouse, subset = (nCount_RNA > nCount.min) &
@@ -85,5 +72,5 @@ remove(mouse,counts,counts.filtered,nonzero)
 
 # save
 saveRDS(object = mouse.filtered, 
-        file = paste0( "../../rObjects/seurat_obj_filtered_", filtering_method, "_pass1.rds"), 
+        file = paste0("../../rObjects/", filtering_method, "_pass1_filtered_seurat_obj.rds"), 
         compress = FALSE)

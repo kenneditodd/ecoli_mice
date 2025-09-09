@@ -25,17 +25,11 @@ library(tidyr)
 library(ComplexUpset)
 library(UpSetR)
 library(gridExtra)   # grid.arrange()
+library(ggrepel)
 ```
 
 ## Functions
-```{r save_functions}
-saveToPDF <- function(...) {
-    d = dev.copy(pdf,...)
-    dev.off(d)
-}
-```
-
-```{r}
+```{r get_exclusiver_intersection_genes}
 get_exclusive_intersection_genes <- function(upset_data, list_input) {
   # Initialize a list to store the results
   results <- list()
@@ -74,8 +68,272 @@ get_exclusive_intersection_genes <- function(upset_data, list_input) {
 }
 ```
 
+# Heatmap
+## 2 days w/ pval
+- sex specific filtering but both sexes comparison \
+- FDRq < 0.05 and LFC=0 \
+- Heatmap for 2-day timepoints \
+```{r}
+# save path
+out <- "../results/sex_specific_filtering_but_both_sexes_comparison/"
+
+# genes of interest
+goi_2D <- c("S100a8","Lcn2","S100a9","Ctla2a","Lrg1","Top2a","Pkn3","Igsf6",
+            "Srarp","Cd52","Edn1","Vil1","Rhoh","Tmem252","Vwf","Myct1",
+            "Clec14a","Lyz1","Fermt1","Gpr160","Tnfsf10","Slc38a5","Ctss",
+            "Ly6a","C1qa","C1qb","C1qc","Csf3r","Mpeg1","Vim","Pecam1",
+            "Adgre1","Itgam","Hif3a","Sgk1","Smox","Mfsd2a","Ly6c1","Tcim")
+
+# get DEG files
+files <- list.files(paste0(out, "DEGs_with_hbb/DEG_tables/"))
+files <- files[grep("E.2D.+_vs_S.2D.+_1.00_LFC_0.00.tsv", files)]
+
+# init
+lfc.df <- data.frame(row.names = goi_2D)
+adjpval.df <- data.frame(row.names = goi_2D)
+
+for (i in seq_along(files)) {
+  # read table
+  data <- read.delim(
+    file = paste0(out, "DEGs_with_hbb/DEG_tables/", files[i]),
+    sep = "\t", check.names = FALSE
+  )
+
+  # comparison name
+  comparison <- sub("_FDRq_1.00_LFC_0.00\\.tsv$", "", files[i])
+
+  # filter + order to goi_2D
+  data <- data[data$gene_name %in% goi_2D, c("gene_name","logFC", "adj.P.Val")]
+  rownames(data) <- data$gene_name
+  data <- data[match(goi_2D, rownames(data)), , drop = FALSE]
+
+  # ensure numeric (in case it was read as character)
+  data$logFC <- round(as.numeric(data$logFC), 4)
+  data$adj.P.Val <- as.numeric(data$adj.P.Val)
+
+  # assign just the logFC column
+  lfc.df[[comparison]] <- data$logFC
+  adjpval.df[[comparison]] <- data$adj.P.Val
+}
+
+# set heatmap colors and names
+paletteLength <- 100
+myColor <- colorRampPalette(c("cornflowerblue", "white", "red"))(paletteLength)
+myBreaks <- c(seq(min(lfc.df), 0, length.out = ceiling(paletteLength/2) + 1), 
+              seq(max(lfc.df)/paletteLength, max(lfc.df), length.out = floor(paletteLength/2)))
+
+# save
+pdf(paste0(out, "custom_figures/2D_logFC_adjPVal_heatmap.pdf"), width = 5, height = 10)
+
+
+pheatmap::pheatmap(lfc.df,
+                   main = "logFC and adj.P.Val for 2 Day Time Points",
+                   cluster_rows = FALSE,
+                   cluster_cols = FALSE,
+                   annotation_colors = ann_colors,
+                   color = myColor,
+                   breaks = myBreaks,
+                   display_numbers = round(adjpval.df, digits = 4),
+                   fontsize_number = 12,
+                   number_color = "black",
+                   )
+```
+
+## 2 days w/out pval
+```{r}
+# save path
+out <- "../results/sex_specific_filtering_but_both_sexes_comparison/"
+
+# genes of interest
+goi_2D <- c("S100a8","Lcn2","S100a9","Ctla2a","Lrg1","Top2a","Pkn3","Igsf6",
+            "Srarp","Cd52","Edn1","Vil1","Rhoh","Tmem252","Vwf","Myct1",
+            "Clec14a","Lyz1","Fermt1","Gpr160","Tnfsf10","Slc38a5","Ctss",
+            "Ly6a","C1qa","C1qb","C1qc","Csf3r","Mpeg1","Vim","Pecam1",
+            "Adgre1","Itgam","Hif3a","Sgk1","Smox","Mfsd2a","Ly6c1","Tcim")
+
+# get DEG files
+files <- list.files(paste0(out, "DEGs_with_hbb/DEG_tables/"))
+files <- files[grep("E.2D.+_vs_S.2D.+_1.00_LFC_0.00.tsv", files)]
+
+# init
+lfc.df <- data.frame(row.names = goi_2D)
+adjpval.df <- data.frame(row.names = goi_2D)
+
+for (i in seq_along(files)) {
+  # read table
+  data <- read.delim(
+    file = paste0(out, "DEGs_with_hbb/DEG_tables/", files[i]),
+    sep = "\t", check.names = FALSE
+  )
+
+  # comparison name
+  comparison <- sub("_FDRq_1.00_LFC_0.00\\.tsv$", "", files[i])
+
+  # filter + order to goi_2D
+  data <- data[data$gene_name %in% goi_2D, c("gene_name","logFC", "adj.P.Val")]
+  rownames(data) <- data$gene_name
+  data <- data[match(goi_2D, rownames(data)), , drop = FALSE]
+
+  # ensure numeric (in case it was read as character)
+  data$logFC <- round(as.numeric(data$logFC), 4)
+  data$adj.P.Val <- as.numeric(data$adj.P.Val)
+
+  # assign just the logFC column
+  lfc.df[[comparison]] <- data$logFC
+  adjpval.df[[comparison]] <- data$adj.P.Val
+}
+
+# set heatmap colors and names
+paletteLength <- 100
+myColor <- colorRampPalette(c("cornflowerblue", "white", "red"))(paletteLength)
+myBreaks <- c(seq(min(lfc.df), 0, length.out = ceiling(paletteLength/2) + 1), 
+              seq(max(lfc.df)/paletteLength, max(lfc.df), length.out = floor(paletteLength/2)))
+
+# save
+pdf(paste0(out, "custom_figures/2D_logFC_heatmap.pdf"), width = 5, height = 10)
+
+
+pheatmap::pheatmap(lfc.df,
+                   main = "logFC for 2 Day Time Points",
+                   cluster_rows = FALSE,
+                   cluster_cols = FALSE,
+                   annotation_colors = ann_colors,
+                   color = myColor,
+                   breaks = myBreaks)
+```
+
+## 21 days w/ pval
+```{r}
+# save path
+out <- "../results/sex_specific_filtering_but_both_sexes_comparison/"
+
+# genes of interest
+goi_21D <- c("Hif3a", "Tlr13", "Xdh", "Skap1", "Ccdc88a", "Kcnb2", "Grik1", 
+             "Adcy8", "H2-K1", "Higd1b", "Atp10a", "C1qtnf4", "Ppp3r1", "Gab3", 
+             "Il1rapl1", "Rasgrp2", "Camk1", "Hs3st5", "Syn3", "Pde4b", "Dlg2", 
+             "Ece2", "Slc22a4", "Pola2", "Dgki")
+
+# get DEG files
+files <- list.files(paste0(out, "DEGs_with_hbb/DEG_tables/"))
+files <- files[grep("E.21D.+_vs_S.21D.+_1.00_LFC_0.00.tsv", files)]
+
+# init
+lfc.df <- data.frame(row.names = goi_21D)
+adjpval.df <- data.frame(row.names = goi_21D)
+
+for (i in seq_along(files)) {
+  # read table
+  data <- read.delim(
+    file = paste0(out, "DEGs_with_hbb/DEG_tables/", files[i]),
+    sep = "\t", check.names = FALSE
+  )
+
+  # comparison name
+  comparison <- sub("_FDRq_1.00_LFC_0.00\\.tsv$", "", files[i])
+
+  # filter + order to goi_2D
+  data <- data[data$gene_name %in% goi_21D, c("gene_name","logFC", "adj.P.Val")]
+  rownames(data) <- data$gene_name
+  data <- data[match(goi_21D, rownames(data)), , drop = FALSE]
+
+  # ensure numeric (in case it was read as character)
+  data$logFC <- round(as.numeric(data$logFC), 4)
+  data$adj.P.Val <- as.numeric(data$adj.P.Val)
+
+  # assign just the logFC column
+  lfc.df[[comparison]] <- data$logFC
+  adjpval.df[[comparison]] <- data$adj.P.Val
+}
+
+# set heatmap colors and names
+paletteLength <- 100
+myColor <- colorRampPalette(c("cornflowerblue", "white", "red"))(paletteLength)
+myBreaks <- c(seq(min(lfc.df), 0, length.out = ceiling(paletteLength/2) + 1), 
+              seq(max(lfc.df)/paletteLength, max(lfc.df), length.out = floor(paletteLength/2)))
+
+# save
+pdf(paste0(out, "custom_figures/21D_logFC_adjPVal_heatmap.pdf"), width = 5, height = 10)
+
+
+pheatmap::pheatmap(lfc.df,
+                   main = "logFC and adj.P.Val for 21 Day Time Points",
+                   cluster_rows = FALSE,
+                   cluster_cols = FALSE,
+                   annotation_colors = ann_colors,
+                   color = myColor,
+                   breaks = myBreaks,
+                   display_numbers = round(adjpval.df, digits = 4),
+                   fontsize_number = 12,
+                   number_color = "black",
+                   )
+```
+
+
+## 21 days w/out pval
+```{r}
+# save path
+out <- "../results/sex_specific_filtering_but_both_sexes_comparison/"
+
+# genes of interest
+goi_21D <- c("Hif3a", "Tlr13", "Xdh", "Skap1", "Ccdc88a", "Kcnb2", "Grik1", 
+             "Adcy8", "H2-K1", "Higd1b", "Atp10a", "C1qtnf4", "Ppp3r1", "Gab3", 
+             "Il1rapl1", "Rasgrp2", "Camk1", "Hs3st5", "Syn3", "Pde4b", "Dlg2", 
+             "Ece2", "Slc22a4", "Pola2", "Dgki")
+
+# get DEG files
+files <- list.files(paste0(out, "DEGs_with_hbb/DEG_tables/"))
+files <- files[grep("E.21D.+_vs_S.21D.+_1.00_LFC_0.00.tsv", files)]
+
+# init
+lfc.df <- data.frame(row.names = goi_21D)
+adjpval.df <- data.frame(row.names = goi_21D)
+
+for (i in seq_along(files)) {
+  # read table
+  data <- read.delim(
+    file = paste0(out, "DEGs_with_hbb/DEG_tables/", files[i]),
+    sep = "\t", check.names = FALSE
+  )
+
+  # comparison name
+  comparison <- sub("_FDRq_1.00_LFC_0.00\\.tsv$", "", files[i])
+
+  # filter + order to goi_2D
+  data <- data[data$gene_name %in% goi_21D, c("gene_name","logFC", "adj.P.Val")]
+  rownames(data) <- data$gene_name
+  data <- data[match(goi_21D, rownames(data)), , drop = FALSE]
+
+  # ensure numeric (in case it was read as character)
+  data$logFC <- round(as.numeric(data$logFC), 4)
+  data$adj.P.Val <- as.numeric(data$adj.P.Val)
+
+  # assign just the logFC column
+  lfc.df[[comparison]] <- data$logFC
+  adjpval.df[[comparison]] <- data$adj.P.Val
+}
+
+# set heatmap colors and names
+paletteLength <- 100
+myColor <- colorRampPalette(c("cornflowerblue", "white", "red"))(paletteLength)
+myBreaks <- c(seq(min(lfc.df), 0, length.out = ceiling(paletteLength/2) + 1), 
+              seq(max(lfc.df)/paletteLength, max(lfc.df), length.out = floor(paletteLength/2)))
+
+# save
+pdf(paste0(out, "custom_figures/21D_logFC_heatmap.pdf"), width = 5, height = 10)
+
+
+pheatmap::pheatmap(lfc.df,
+                   main = "logFC for 21 Day Time Points",
+                   cluster_rows = FALSE,
+                   cluster_cols = FALSE,
+                   annotation_colors = ann_colors,
+                   color = myColor,
+                   breaks = myBreaks)
+```
+
+
 # Upset filtering comparison
-## E.2D.Y vs S.2D.Y
+## E.coli vs saline, 2 days, both sexes
 ### Plot
 ```{r}
 # set variables
@@ -84,28 +342,28 @@ myLfc <- 0
 model <- "DEGs_with_hbb/"
 
 # read tables
-ss_filt <- read.delim(
+E2DY_vs_S2DY <- read.delim(
   paste0("../results/sex_specific_filtering_but_both_sexes_comparison/", 
          model, "DEG_tables/E.2D.Y_vs_S.2D.Y_FDRq_1.00_LFC_0.00.tsv"))
-bs_filt <- read.delim(
+E2DO_vs_S2DO <- read.delim(
   paste0("../results/filtered_samples_both_sexes/", 
-         model, "DEG_tables/E.2D.Y_vs_S.2D.Y_FDRq_1.00_LFC_0.00.tsv"))
-rownames(ss_filt) <- ss_filt$gene_name_unique
-rownames(bs_filt) <- bs_filt$gene_name_unique
+         model, "DEG_tables/E.2D.O_vs_S.2D.O_FDRq_1.00_LFC_0.00.tsv"))
+rownames(E2DY_vs_S2DY) <- E2DY_vs_S2DY$gene_name_unique
+rownames(E2DO_vs_S2DO) <- E2DO_vs_S2DO$gene_name_unique
 
 # filter on pval
-ss_filt <- ss_filt[ss_filt$adj.P.Val < thresh,]
-bs_filt <- bs_filt[bs_filt$adj.P.Val < thresh,]
+E2DY_vs_S2DY <- E2DY_vs_S2DY[E2DY_vs_S2DY$adj.P.Val < thresh,]
+E2DO_vs_S2DO <- E2DO_vs_S2DO[E2DO_vs_S2DO$adj.P.Val < thresh,]
 
 # Subset lists
-ss_filt.up <- subset(ss_filt$gene_name_unique, ss_filt$logFC > myLfc)
-ss_filt.down <- subset(ss_filt$gene_name_unique, ss_filt$logFC < -myLfc)
-bs_filt.up <- subset(bs_filt$gene_name_unique, bs_filt$logFC > myLfc)
-bs_filt.down <- subset(bs_filt$gene_name_unique, bs_filt$logFC < -myLfc)
-list_input <- list("both sexes filtering, up-regulated" = bs_filt.up,
-                   "sex specific filtering, up-regulated" = ss_filt.up,
-                   "both sexes filtering, down-regulated" = bs_filt.down,
-                   "sex specific filtering, down-regulated" = ss_filt.down)
+E2DY_vs_S2DY_up <- subset(E2DY_vs_S2DY$gene_name_unique, E2DY_vs_S2DY$logFC > myLfc)
+E2DY_vs_S2DY_down <- subset(E2DY_vs_S2DY$gene_name_unique, E2DY_vs_S2DY$logFC < -myLfc)
+E2DO_vs_S2DO_up <- subset(E2DO_vs_S2DO$gene_name_unique, E2DO_vs_S2DO$logFC > myLfc)
+E2DO_vs_S2DO_down <- subset(E2DO_vs_S2DO$gene_name_unique, E2DO_vs_S2DO$logFC < -myLfc)
+list_input <- list("E.2D.O vs S.2D.O up-regulated" = E2DO_vs_S2DO_up,
+                   "E.2D.Y vs S.2D.Y up-regulated" = E2DY_vs_S2DY_up,
+                   "E.2D.O vs S.2D.O down-regulated" = E2DO_vs_S2DO_down,
+                   "E.2D.Y vs S.2D.Y down-regulated" = E2DY_vs_S2DY_down)
 data <- fromList(list_input)
   
 # store names
@@ -118,14 +376,13 @@ upset_gene <- ComplexUpset::upset(data,
 					upset_set_size()
 					+ geom_text(aes(label=..count..), hjust=1.1, stat='count')
 					+ expand_limits(y=400)),
-				  queries = list(upset_query("both sexes filtering, up-regulated", fill = "red"),
-								 upset_query("sex specific filtering, up-regulated", fill = "red"),
-								 upset_query("8 hr Low Dose Psilocybin vs Saline Down-regulated", fill = "blue"),
-								 upset_query("both sexes filtering, down-regulated", fill = "blue"),
-								 upset_query("sex specific filtering, down-regulated", fill = "blue")),
+				  queries = list(upset_query("E.2D.O vs S.2D.O up-regulated", fill = "red"),
+								 upset_query("E.2D.Y vs S.2D.Y up-regulated", fill = "red"),
+								 upset_query("E.2D.O vs S.2D.O down-regulated", fill = "blue"),
+								 upset_query("E.2D.Y vs S.2D.Y down-regulated", fill = "blue")),
 				  base_annotations = list('Intersection size' = (
 					intersection_size(bar_number_threshold=1, width=0.5)
-					+ scale_y_continuous(expand=expansion(mult=c(0, 0.05)),limits = c(0,250)) # space on top
+					+ scale_y_continuous(expand=expansion(mult=c(0, 0.05)),limits = c(0,1000)) # space on top
 					+ theme(
 						  # hide grid lines
 						  panel.grid.major=element_blank(),
@@ -146,12 +403,13 @@ upset_gene <- ComplexUpset::upset(data,
 				  sort_intersections='descending'
 				)
 
-upset_gene <- upset_gene + ggtitle(paste0("E.2D.Y vs S.2D.Y, FDRq < ", format(thresh, nsmall = 2),
+upset_gene <- upset_gene + ggtitle(paste0("E.2D vs S.2D, FDRq < ", format(thresh, nsmall = 2),
                                           ", |LFC| > ", format(myLfc, nsmall = 2)))
 
 # save
-pdf(paste0("../results/filtering_comparison/E.2D.Y_vs_S.2D.Y_FDRq_", format(thresh, nsmall = 2), 
-           "_LFC_", format(myLfc, nsmall = 2), "_upset.pdf"), 
+pdf(paste0("../results/sex_specific_filtering_but_both_sexes_comparison/",
+           model, "upset/E.2D_vs_S.2D_both_sexes_FDRq_", 
+           format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), "_upset.pdf"), 
     height = 6, width = 10)
 upset_gene
 ```
@@ -178,7 +436,121 @@ exclusive_intersection_df <-
 
 # save
 write.table(x = exclusive_intersection_df,
-            file = paste0("../results/filtering_comparison/E.2D.Y_vs_S.2D.Y_FDRq_", 
+            file = paste0("../results/sex_specific_filtering_but_both_sexes_comparison/",
+                          model, "upset/E.2D_vs_S.2D_both_sexes_FDRq_", 
+                          format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), 
+                          "_results.tsv"),
+            sep = "\t",
+            quote = FALSE,
+            col.names = TRUE,
+            row.names = FALSE)
+```
+
+## E.coli vs saline, 21 days, both sexes
+### Plot
+```{r}
+# set variables
+thresh <- 0.05
+myLfc <- 0
+model <- "DEGs_with_hbb/"
+
+# read tables
+E21DY_vs_S21DY <- read.delim(
+  paste0("../results/sex_specific_filtering_but_both_sexes_comparison/", 
+         model, "DEG_tables/E.21D.Y_vs_S.21D.Y_FDRq_1.00_LFC_0.00.tsv"))
+E21DO_vs_S21DO <- read.delim(
+  paste0("../results/filtered_samples_both_sexes/", 
+         model, "DEG_tables/E.21D.O_vs_S.21D.O_FDRq_1.00_LFC_0.00.tsv"))
+rownames(E21DY_vs_S21DY) <- E21DY_vs_S21DY$gene_name_unique
+rownames(E21DO_vs_S21DO) <- E21DO_vs_S21DO$gene_name_unique
+
+# filter on pval
+E21DY_vs_S21DY <- E21DY_vs_S21DY[E21DY_vs_S21DY$adj.P.Val < thresh,]
+E21DO_vs_S21DO <- E21DO_vs_S21DO[E21DO_vs_S21DO$adj.P.Val < thresh,]
+
+# Subset lists
+E21DY_vs_S21DY_up <- subset(E21DY_vs_S21DY$gene_name_unique, E21DY_vs_S21DY$logFC > myLfc)
+E21DY_vs_S21DY_down <- subset(E21DY_vs_S21DY$gene_name_unique, E21DY_vs_S21DY$logFC < -myLfc)
+E21DO_vs_S21DO_up <- subset(E21DO_vs_S21DO$gene_name_unique, E21DO_vs_S21DO$logFC > myLfc)
+E21DO_vs_S21DO_down <- subset(E21DO_vs_S21DO$gene_name_unique, E21DO_vs_S21DO$logFC < -myLfc)
+list_input <- list("E.21D.O vs S.21D.O up-regulated" = E21DO_vs_S21DO_up,
+                   "E.21D.Y vs S.21D.Y up-regulated" = E21DY_vs_S21DY_up,
+                   "E.21D.O vs S.21D.O down-regulated" = E21DO_vs_S21DO_down,
+                   "E.21D.Y vs S.21D.Y down-regulated" = E21DY_vs_S21DY_down)
+data <- fromList(list_input)
+  
+# store names
+names <- colnames(data)
+  
+# plot
+upset_gene <- ComplexUpset::upset(data, 
+				  names,
+				  set_sizes=(
+					upset_set_size()
+					+ geom_text(aes(label=..count..), hjust=1.1, stat='count')
+					+ expand_limits(y=400)),
+				  queries = list(upset_query("E.21D.O vs S.21D.O up-regulated", fill = "red"),
+								 upset_query("E.21D.Y vs S.21D.Y up-regulated", fill = "red"),
+								 upset_query("E.21D.O vs S.21D.O down-regulated", fill = "blue"),
+								 upset_query("E.21D.Y vs S.21D.Y down-regulated", fill = "blue")),
+				  base_annotations = list('Intersection size' = (
+					intersection_size(bar_number_threshold=1, width=0.5)
+					+ scale_y_continuous(expand=expansion(mult=c(0, 0.05)),limits = c(0,1000)) # space on top
+					+ theme(
+						  # hide grid lines
+						  panel.grid.major=element_blank(),
+						  panel.grid.minor=element_blank(),
+						  # show axis lines
+						  axis.line=element_line(colour='black')))),
+				  stripes = upset_stripes(
+					geom=geom_segment(size=12),  # make the stripes larger
+					colors=c('grey95', 'white')),
+				  # to prevent connectors from getting the colorured
+				  # use `fill` instead of `color`, together with `shape='circle filled'`
+				  matrix = intersection_matrix(
+					geom=geom_point(
+					  shape='circle filled',
+					  size=3,
+					  stroke=0.45)),
+				  sort_sets=FALSE,
+				  sort_intersections='descending'
+				)
+
+upset_gene <- upset_gene + ggtitle(paste0("E.21D vs S.21D, FDRq < ", format(thresh, nsmall = 2),
+                                          ", |LFC| > ", format(myLfc, nsmall = 2)))
+
+# save
+pdf(paste0("../results/sex_specific_filtering_but_both_sexes_comparison/",
+           model, "upset/E.21D_vs_S.21D_both_sexes_FDRq_", 
+           format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), "_upset.pdf"), 
+    height = 6, width = 10)
+upset_gene
+```
+
+### Extract
+```{r}
+# convert the gene sets into a binary matrix (like UpSet plot input)
+upset_data <- UpSetR::fromList(list_input)
+
+# call the function to extract the exclusive intersection genes
+exclusive_intersection_results <- get_exclusive_intersection_genes(upset_data, list_input)
+
+# convert the list to a data.frame with two columns: Total genes and gene list
+exclusive_intersection_df <- do.call(rbind, lapply(names(exclusive_intersection_results), function(x) {
+  data.frame(
+    Intersection = x,
+    Total_Genes = exclusive_intersection_results[[x]]$total_genes,
+    Gene_List = exclusive_intersection_results[[x]]$gene_list,
+    stringsAsFactors = FALSE
+  )
+}))
+exclusive_intersection_df <- 
+  exclusive_intersection_df[order(exclusive_intersection_df$Total_Genes, decreasing = TRUE),]
+
+# save
+write.table(x = exclusive_intersection_df,
+            file = paste0("../results/sex_specific_filtering_but_both_sexes_comparison/",
+                          model, "upset/E.2D_vs_S.2D_both_sexes_FDRq_", 
                           format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), 
                           "_results.tsv"),
             sep = "\t",
@@ -188,6 +560,141 @@ write.table(x = exclusive_intersection_df,
 ```
 
 
+## E.coli vs saline, both sexes
+### Plot
+```{r}
+# set variables
+thresh <- 0.05
+myLfc <- 0
+model <- "DEGs_with_hbb/"
+
+# read tables
+E2DY_vs_S2DY <- read.delim(
+  paste0("../results/sex_specific_filtering_but_both_sexes_comparison/", 
+         model, "DEG_tables/E.2D.Y_vs_S.2D.Y_FDRq_1.00_LFC_0.00.tsv"))
+E2DO_vs_S2DO <- read.delim(
+  paste0("../results/filtered_samples_both_sexes/", 
+         model, "DEG_tables/E.2D.O_vs_S.2D.O_FDRq_1.00_LFC_0.00.tsv"))
+E21DY_vs_S21DY <- read.delim(
+  paste0("../results/sex_specific_filtering_but_both_sexes_comparison/", 
+         model, "DEG_tables/E.21D.Y_vs_S.21D.Y_FDRq_1.00_LFC_0.00.tsv"))
+E21DO_vs_S21DO <- read.delim(
+  paste0("../results/filtered_samples_both_sexes/", 
+         model, "DEG_tables/E.21D.O_vs_S.21D.O_FDRq_1.00_LFC_0.00.tsv"))
+
+rownames(E2DY_vs_S2DY) <- E2DY_vs_S2DY$gene_name_unique
+rownames(E2DO_vs_S2DO) <- E2DO_vs_S2DO$gene_name_unique
+rownames(E21DY_vs_S21DY) <- E21DY_vs_S21DY$gene_name_unique
+rownames(E21DO_vs_S21DO) <- E21DO_vs_S21DO$gene_name_unique
+
+# filter on pval
+E2DY_vs_S2DY <- E2DY_vs_S2DY[E2DY_vs_S2DY$adj.P.Val < thresh,]
+E2DO_vs_S2DO <- E2DO_vs_S2DO[E2DO_vs_S2DO$adj.P.Val < thresh,]
+E21DY_vs_S21DY <- E21DY_vs_S21DY[E21DY_vs_S21DY$adj.P.Val < thresh,]
+E21DO_vs_S21DO <- E21DO_vs_S21DO[E21DO_vs_S21DO$adj.P.Val < thresh,]
+
+# Subset lists
+E2DY_vs_S2DY_up <- subset(E2DY_vs_S2DY$gene_name_unique, E2DY_vs_S2DY$logFC > myLfc)
+E2DY_vs_S2DY_down <- subset(E2DY_vs_S2DY$gene_name_unique, E2DY_vs_S2DY$logFC < -myLfc)
+E2DO_vs_S2DO_up <- subset(E2DO_vs_S2DO$gene_name_unique, E2DO_vs_S2DO$logFC > myLfc)
+E2DO_vs_S2DO_down <- subset(E2DO_vs_S2DO$gene_name_unique, E2DO_vs_S2DO$logFC < -myLfc)
+E21DY_vs_S21DY_up <- subset(E21DY_vs_S21DY$gene_name_unique, E21DY_vs_S21DY$logFC > myLfc)
+E21DY_vs_S21DY_down <- subset(E21DY_vs_S21DY$gene_name_unique, E21DY_vs_S21DY$logFC < -myLfc)
+E21DO_vs_S21DO_up <- subset(E21DO_vs_S21DO$gene_name_unique, E21DO_vs_S21DO$logFC > myLfc)
+E21DO_vs_S21DO_down <- subset(E21DO_vs_S21DO$gene_name_unique, E21DO_vs_S21DO$logFC < -myLfc)
+list_input <- list("E.21D.O vs S.21D.O up-regulated" = E21DO_vs_S21DO_up,
+                   "E.21D.Y vs S.21D.Y up-regulated" = E21DY_vs_S21DY_up,
+                   "E.21D.O vs S.21D.O down-regulated" = E21DO_vs_S21DO_down,
+                   "E.21D.Y vs S.21D.Y down-regulated" = E21DY_vs_S21DY_down,
+                   "E.2D.O vs S.2D.O up-regulated" = E2DO_vs_S2DO_up,
+                   "E.2D.Y vs S.2D.Y up-regulated" = E2DY_vs_S2DY_up,
+                   "E.2D.O vs S.2D.O down-regulated" = E2DO_vs_S2DO_down,
+                   "E.2D.Y vs S.2D.Y down-regulated" = E2DY_vs_S2DY_down)
+data <- fromList(list_input)
+  
+# store names
+names <- colnames(data)
+  
+# plot
+upset_gene <- ComplexUpset::upset(data, 
+				  names,
+				  set_sizes=(
+					upset_set_size()
+					+ geom_text(aes(label=..count..), hjust=1.1, stat='count')
+					+ expand_limits(y=400)),
+				  queries = list(upset_query("E.21D.O vs S.21D.O up-regulated", fill = "red"),
+								 upset_query("E.21D.Y vs S.21D.Y up-regulated", fill = "red"),
+								 upset_query("E.21D.O vs S.21D.O down-regulated", fill = "blue"),
+								 upset_query("E.21D.Y vs S.21D.Y down-regulated", fill = "blue"),
+								 upset_query("E.2D.O vs S.2D.O up-regulated", fill = "red"),
+								 upset_query("E.2D.Y vs S.2D.Y up-regulated", fill = "red"),
+								 upset_query("E.2D.O vs S.2D.O down-regulated", fill = "blue"),
+								 upset_query("E.2D.Y vs S.2D.Y down-regulated", fill = "blue")),
+				  base_annotations = list('Intersection size' = (
+					intersection_size(bar_number_threshold=1, width=0.5)
+					+ scale_y_continuous(expand=expansion(mult=c(0, 0.05)),limits = c(0,250)) # space on top
+					+ theme(
+						  # hide grid lines
+						  panel.grid.major=element_blank(),
+						  panel.grid.minor=element_blank(),
+						  # show axis lines
+						  axis.line=element_line(colour='black')))),
+				  stripes = upset_stripes(
+					geom=geom_segment(size=12),  # make the stripes larger
+					colors=c('grey95', 'white')),
+				  # to prevent connectors from getting the colorured
+				  # use `fill` instead of `color`, together with `shape='circle filled'`
+				  matrix = intersection_matrix(
+					geom=geom_point(
+					  shape='circle filled',
+					  size=3,
+					  stroke=0.45)),
+				  sort_sets=FALSE,
+				  sort_intersections='descending'
+				)
+
+upset_gene <- upset_gene + ggtitle(paste0("E. coli vs Saline, FDRq < ", format(thresh, nsmall = 2),
+                                          ", |LFC| > ", format(myLfc, nsmall = 2)))
+
+# save
+pdf(paste0("../results/sex_specific_filtering_but_both_sexes_comparison/",
+           model, "upset/E_vs_S_both_sexes_FDRq_", 
+           format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), "_upset.pdf"), 
+    height = 6, width = 10)
+upset_gene
+```
+
+### Extract
+```{r}
+# convert the gene sets into a binary matrix (like UpSet plot input)
+upset_data <- UpSetR::fromList(list_input)
+
+# call the function to extract the exclusive intersection genes
+exclusive_intersection_results <- get_exclusive_intersection_genes(upset_data, list_input)
+
+# convert the list to a data.frame with two columns: Total genes and gene list
+exclusive_intersection_df <- do.call(rbind, lapply(names(exclusive_intersection_results), function(x) {
+  data.frame(
+    Intersection = x,
+    Total_Genes = exclusive_intersection_results[[x]]$total_genes,
+    Gene_List = exclusive_intersection_results[[x]]$gene_list,
+    stringsAsFactors = FALSE
+  )
+}))
+exclusive_intersection_df <- 
+  exclusive_intersection_df[order(exclusive_intersection_df$Total_Genes, decreasing = TRUE),]
+
+# save
+write.table(x = exclusive_intersection_df,
+            file = paste0("../results/sex_specific_filtering_but_both_sexes_comparison/",
+                          model, "upset/E.2D_vs_S.2D_both_sexes_FDRq_", 
+                          format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), 
+                          "_results.tsv"),
+            sep = "\t",
+            quote = FALSE,
+            col.names = TRUE,
+            row.names = FALSE)
+```
 ## E.2D.O vs S.2D.O
 ### Plot
 ```{r}
@@ -526,8 +1033,234 @@ write.table(x = exclusive_intersection_df,
             row.names = FALSE)
 ```
 
+# Custom volcanos
+## E.2D.Y vs S.2D.Y
+```{r}
+# custom genes to label
+goi <- c("S100a8", "S100a9", "Lcn2", "Mpeg1", "Csf3r", "Adgre1", "Vim", "Pecam1",
+         "Itgam", "Sgk1", "Nfkbia", "Acot11", "Smox", "Mfsd2a")
 
+# Output directories and file paths
+out <- "../results/sex_specific_filtering_but_both_sexes_comparison/"
+model <- "DEGs_with_hbb/"
 
+# set variables
+thresh <- 0.05
+my.lfc <- 0
+
+# get file list
+file <- paste0(out, model, "DEG_tables/E.2D.Y_vs_S.2D.Y_FDRq_1.00_LFC_0.00.tsv")
+
+# read DEG file
+data <- read.delim(file, sep = "\t")
+
+# subset genes to label
+labels <- data[data$gene_name %in% goi,]
+up <- labels[labels$logFC > 0,]
+down <- labels[labels$logFC < 0,]
+  
+# assign colors based on thresh
+color_values <- vector()
+max <- nrow(data)
+for(row in 1:max){
+  if (data$adj.P.Val[row] < thresh){
+    if (data$logFC [row] > my.lfc){
+      color_values <- c(color_values, 1) # 1 when logFC > my.lfc and FDRq < thresh
+    } else if (data$logFC[row] < -my.lfc){
+      color_values <- c(color_values, 2) # 2 when logFC < -my.lfc and FDRq < thresh
+    } else {
+      color_values <- c(color_values, 3) # 3 when logFC between -my.lfc and +my.lfc and FDRq < thresh
+    }
+  } else {
+    color_values <- c(color_values, 3) # 3 when FDRq >= thresh
+  }
+}
+data$color_adjpval <- color_values
+
+# manual colors for goi
+data$color_adjpval[data$gene_name %in% up$gene_name] <- 4
+data$color_adjpval[data$gene_name %in% down$gene_name] <- 5
+data$color_adjpval <- factor(data$color_adjpval)
+  
+# comparison name
+comparison <- gsub(paste0(out, model, "DEG_tables/"), "", file)
+comparison <- gsub("_FDRq_1.00_LFC_0.00.tsv","",comparison)
+
+# set manual colors
+my_colors <- c("#ffdcdb","#e6eefc","lightgray","red","blue")
+ 
+# set significance threshold
+hadjpval <- (-log10(max(data$P.Value[data$adj.P.Val < thresh], na.rm=TRUE)))
+
+# plot
+p <-
+  ggplot(data = data, 
+         aes(x = logFC,  # x-axis is logFC
+             y = -log10(P.Value),  # y-axis will be -log10 of P.Value
+             color = color_adjpval)) +  # color is based on factored color column
+  geom_point(alpha = 0.8, size = 2) +  # create scatterplot, alpha makes points transparent
+  theme_bw() +  # set color theme
+  theme(legend.position = "none") +  # no legend
+  scale_color_manual(values = my_colors) +  # set factor colors
+  labs(
+    title = "", # no main title
+    x = expression(log[2](FC)), # x-axis title
+     y = expression(-log[10] ~ "(" ~ italic("p") ~ "-value)") # y-axis title
+  ) +
+  theme(axis.title.x = element_text(size = 15),
+        axis.text.x = element_text(size = 15)) +
+  theme(axis.title.y = element_text(size = 15),
+        axis.text.y = element_text(size = 15)) +
+  theme(plot.title = element_text(size = 15)) +
+  geom_hline(yintercept = hadjpval,  #  horizontal line
+                     colour = "#000000",
+                     linetype = "dashed") +
+  geom_vline(xintercept = -my.lfc,  #  vertical line
+                     colour = "#000000",
+                     linetype = "dashed") +
+  geom_vline(xintercept = my.lfc,  #  vertical line
+                     colour = "#000000",
+                     linetype = "dashed") +
+  ggtitle(paste0(comparison, ", adj.P.Val < ", thresh, ", LFC = ", my.lfc)) +
+  geom_text_repel(data = up,
+                  aes(x = logFC, y= -log10(P.Value), label = gene_name), 
+                  size = 5,
+                  color = "maroon", 
+                  fontface="italic",
+                  max.overlaps = getOption("ggrepel.max.overlaps", default = 30)
+                  ) +
+  geom_text_repel(data = down,
+                  aes(x = logFC, y= -log10(P.Value), label = gene_name), 
+                  color = "navyblue", 
+                  size = 5,
+                  fontface="italic",
+                  max.overlaps = getOption("ggrepel.max.overlaps", default = 30)
+                  ) +
+  ylim(c(0,15))
+ p
+  
+# save
+path <- paste0(out, "custom_figures/", comparison, "_FDRq_", 
+               format(thresh, nsmall = 2), "_LFC_",
+               format(my.lfc, nsmall = 2), "_volcano.pdf")
+pdf(path, height = 8, width = 8)
+p
+dev.off()
+```
+
+## E.2D.O vs S.2D.O
+```{r}
+# custom genes to label
+goi <- c("S100a8", "S100a9", "Lcn2", "Mpeg1", "Csf3r", "Adgre1", "C1qa", "C1qb", 
+         "C1qc", "Top2a", "Tnfsf10", "Sqle", "Hmgcr", "Insig1")
+
+# Output directories and file paths
+out <- "../results/sex_specific_filtering_but_both_sexes_comparison/"
+model <- "DEGs_with_hbb/"
+
+# set variables
+thresh <- 0.05
+my.lfc <- 0
+
+# get file list
+file <- paste0(out, model, "DEG_tables/E.2D.O_vs_S.2D.O_FDRq_1.00_LFC_0.00.tsv")
+
+# read DEG file
+data <- read.delim(file, sep = "\t")
+
+# subset genes to label
+labels <- data[data$gene_name %in% goi,]
+up <- labels[labels$logFC > 0,]
+down <- labels[labels$logFC < 0,]
+  
+# assign colors based on thresh
+color_values <- vector()
+max <- nrow(data)
+for(row in 1:max){
+  if (data$adj.P.Val[row] < thresh){
+    if (data$logFC [row] > my.lfc){
+      color_values <- c(color_values, 1) # 1 when logFC > my.lfc and FDRq < thresh
+    } else if (data$logFC[row] < -my.lfc){
+      color_values <- c(color_values, 2) # 2 when logFC < -my.lfc and FDRq < thresh
+    } else {
+      color_values <- c(color_values, 3) # 3 when logFC between -my.lfc and +my.lfc and FDRq < thresh
+    }
+  } else {
+    color_values <- c(color_values, 3) # 3 when FDRq >= thresh
+  }
+}
+data$color_adjpval <- color_values
+
+# manual colors for goi
+data$color_adjpval[data$gene_name %in% up$gene_name] <- 4
+data$color_adjpval[data$gene_name %in% down$gene_name] <- 5
+data$color_adjpval <- factor(data$color_adjpval)
+  
+# comparison name
+comparison <- gsub(paste0(out, model, "DEG_tables/"), "", file)
+comparison <- gsub("_FDRq_1.00_LFC_0.00.tsv","",comparison)
+
+# set manual colors
+my_colors <- c("#ffdcdb","#e6eefc","lightgray","red","blue")
+ 
+# set significance threshold
+hadjpval <- (-log10(max(data$P.Value[data$adj.P.Val < thresh], na.rm=TRUE)))
+
+# plot
+p <-
+  ggplot(data = data, 
+         aes(x = logFC,  # x-axis is logFC
+             y = -log10(P.Value),  # y-axis will be -log10 of P.Value
+             color = color_adjpval)) +  # color is based on factored color column
+  geom_point(alpha = 0.8, size = 2) +  # create scatterplot, alpha makes points transparent
+  theme_bw() +  # set color theme
+  theme(legend.position = "none") +  # no legend
+  scale_color_manual(values = my_colors) +  # set factor colors
+  labs(
+    title = "", # no main title
+    x = expression(log[2](FC)), # x-axis title
+     y = expression(-log[10] ~ "(" ~ italic("p") ~ "-value)") # y-axis title
+  ) +
+  theme(axis.title.x = element_text(size = 15),
+        axis.text.x = element_text(size = 15)) +
+  theme(axis.title.y = element_text(size = 15),
+        axis.text.y = element_text(size = 15)) +
+  theme(plot.title = element_text(size = 15)) +
+  geom_hline(yintercept = hadjpval,  #  horizontal line
+                     colour = "#000000",
+                     linetype = "dashed") +
+  geom_vline(xintercept = -my.lfc,  #  vertical line
+                     colour = "#000000",
+                     linetype = "dashed") +
+  geom_vline(xintercept = my.lfc,  #  vertical line
+                     colour = "#000000",
+                     linetype = "dashed") +
+  ggtitle(paste0(comparison, ", adj.P.Val < ", thresh, ", LFC = ", my.lfc)) +
+  geom_text_repel(data = up,
+                  aes(x = logFC, y= -log10(P.Value), label = gene_name), 
+                  size = 5,
+                  color = "maroon", 
+                  fontface="italic",
+                  max.overlaps = getOption("ggrepel.max.overlaps", default = 30)
+                  ) +
+  geom_text_repel(data = down,
+                  aes(x = logFC, y= -log10(P.Value), label = gene_name), 
+                  color = "navyblue", 
+                  size = 5,
+                  fontface="italic",
+                  max.overlaps = getOption("ggrepel.max.overlaps", default = 30)
+                  ) +
+  ylim(c(0,15))
+ p
+  
+# save
+path <- paste0(out, "custom_figures/", comparison, "_FDRq_", 
+               format(thresh, nsmall = 2), "_LFC_",
+               format(my.lfc, nsmall = 2), "_volcano.pdf")
+pdf(path, height = 8, width = 8)
+p
+dev.off()
+```
 # '
 # '
 # '

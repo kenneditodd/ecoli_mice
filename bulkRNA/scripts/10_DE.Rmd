@@ -30,8 +30,8 @@ library(tidyverse)  # ggplot(), %>%, pivot_wider()
 ## User defined variables
 ```{r set_variables}
 # Output directories and file paths
-out <- "../results/filtered_samples_both_sexes/"
-out2 <- "filtered_samples_both_sexes"
+out <- "../results/sex_specific_filtering_but_both_sexes_comparison/"
+out2 <- "filtered_samples_sex_specific"
 model <- "DEGs_with_hbb/"
 
 # Read metadata
@@ -476,8 +476,8 @@ for (dim in dims) {
 Identify number of differentially expressed genes.
 ```{r decide_tests}
 # set thresholds
-pval <- 0.1
-my.lfc <- 0.2
+pval <- 0.05
+my.lfc <- 0
 
 # run tests
 sumTable <- summary(decideTests(

@@ -1,7 +1,7 @@
-sample	group	group2	treatment	timepoint_days	age	sex	animal_id	collection_date	sample_source	i7_index_sequence	i5_index_sequence	adaptor_name	index_kit	filename
+sample	group	group2	treatment	timepoint_days	age	sex	animal_id	collection_date	sample_source	i7_index_sequence	i5_index_sequence	adaptor_name	index_kit	root_filename
 1	S.2D.Y.F.50	S.2D.Y	S.2D.Y.F	saline	2	young	Female	50	10/24/24	Brain	TAACGCGTGA	GAAGTTAGGG	SI-TT-A6	10x Chromium Dual Index Kit TT Set A PN1000215	young_fs_50
 2	S.2D.Y.F.54	S.2D.Y	S.2D.Y.F	saline	2	young	Female	54	10/24/24	Brain	AATGCCATGA	GCATTACGTA	SI-TT-B6	10x Chromium Dual Index Kit TT Set A PN1000215	young_fs_54
-3	S.2D.Y.F.59	S.2D.Y	S.2D.Y.F	saline	2	young	Female	59	10/24/24	Brain	ACGACTACCA	TTAGGGTCGT	SI-TT-C6	10x Chromium Dual Index Kit TT Set A PN1000215	Young_fs_59
+3	S.2D.Y.F.59	S.2D.Y	S.2D.Y.F	saline	2	young	Female	59	10/24/24	Brain	ACGACTACCA	TTAGGGTCGT	SI-TT-C6	10x Chromium Dual Index Kit TT Set A PN1000215	young_fs_59
 4	S.2D.Y.M.1	S.2D.Y	S.2D.Y.M	saline	2	young	Male	1	10/25/24	Brain	GTCCTTCGGC	CTGTGCATGA	SI-TT-E7	10x Chromium Dual Index Kit TT Set A PN1000215	young_ms_1
 5	S.2D.Y.M.11	S.2D.Y	S.2D.Y.M	saline	2	young	Male	11	10/25/24	Brain	GTTTCACGAT	TTTGGCCGAA	SI-TT-G7	10x Chromium Dual Index Kit TT Set A PN1000215	young_ms_11
 6	S.2D.Y.M.6	S.2D.Y	S.2D.Y.M	saline	2	young	Male	6	10/25/24	Brain	AATGTATCCA	TAAGCTCATT	SI-TT-F7	10x Chromium Dual Index Kit TT Set A PN1000215	young_ms_6

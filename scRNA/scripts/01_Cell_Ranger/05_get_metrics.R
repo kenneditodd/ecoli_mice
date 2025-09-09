@@ -32,8 +32,6 @@ df[c(1:4,19,20)] <- lapply(df[2:4], function(col) {
   as.numeric(gsub(",", "", col))
 })
 
-
-
 # rename columns
 df <- df %>%
   rename(
@@ -42,6 +40,7 @@ df <- df %>%
     median_genes_per_cell = Median.Genes.per.Cell,
     number_reads = Number.of.Reads,
     valid_barcodes = Valid.Barcodes,
+    valid_UMIs = Valid.UMIs,
     sequencing_saturation = Sequencing.Saturation,
     Q30_bases_barcode = Q30.Bases.in.Barcode,
     Q30_bases_read = Q30.Bases.in.RNA.Read,

@@ -1,10 +1,10 @@
 #!/bin/sh
 #SBATCH --job-name=n10x_count       # Name of the job
 #SBATCH --mem=50G                   # Amount of memory allocated for the job
-#SBATCH --tasks=32                  # Number of tasks (or CPU cores)
+#SBATCH --cpus-per-task=32          # Assign cores to single threaded job
 #SBATCH --output=logs/%x.%j.stdout  # File for standard output
 #SBATCH --error=logs/%x.%j.stderr   # File for standard error output
-#SBATCH --time=24:00:00             # Maximum time the job is allowed to run, HH:MM:SS
+#SBATCH --time=36:00:00             # Maximum time the job is allowed to run, HH:MM:SS
 
 # source settings and environment variables
 source $HOME/.bash_profile
@@ -31,8 +31,8 @@ cellranger count \
 	--sample=$SAMPLE \
 	--fastqs=$FASTQ_DIR \
 	--transcriptome="${ANNOTATION_REFS}/refdata-gex-GRCm39-2024-A" \
-	--localcores=$SLURM_NTASKS \
-	--localmem=$(($SLURM_MEM_PER_NODE / 1024))
+	--localcores=$SLURM_CPUS_PER_TASK \
+	--localmem=$((SLURM_MEM_PER_NODE / 1024 - 2))
 
 # key:
 # --id, output folder named after the sample

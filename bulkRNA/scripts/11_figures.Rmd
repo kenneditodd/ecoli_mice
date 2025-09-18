@@ -68,14 +68,176 @@ get_exclusive_intersection_genes <- function(upset_data, list_input) {
 }
 ```
 
-# Heatmap
-## 2 days w/ pval
+# Heatmap 1
+- Created an upset plot with 4 genes lists
+  - E.2D.Y vs S.2D.Y up-regulated
+  - E.2D.Y vs S.2D.Y down-regulated
+  - E.2D.O vs S.2D.O up-regulated
+  - E.2D.O vs S.2D.O down-regulated
+- There were 99 overlapping genes for the up-regulated gene lists
+- Create a heatmap looking at the immune and endothelial overlapping genes
+```{r}
+# save path
+out <- "../results/both_sexes/"
+
+# genes categories
+h1_categories <- read.delim2("../refs/heatmap_gene_categories.tsv")
+
+# heatmap 1 genes
+h1_genes <- read.delim2(file = "../refs/heatmap1_genes.tsv")
+
+# add category info
+h1_genes <- dplyr::left_join(x = h1_genes, y = h1_categories)
+remove(h1_categories)
+rownames(h1_genes) <- h1_genes$gene_name
+
+# get DEG files
+files <- list.files(paste0(out, "DEGs_with_hbb/DEG_tables/"))
+files <- files[grep("E.2D.+_vs_S.2D.+_1.00_LFC_0.00.tsv", files)]
+
+# init
+h1_lfc <- data.frame(row.names = h1_genes$gene_name)
+
+for (i in seq_along(files)) {
+  # read table
+  data <- read.delim(
+    file = paste0(out, "DEGs_with_hbb/DEG_tables/", files[i]),
+    sep = "\t", check.names = FALSE
+  )
+
+  # comparison name
+  comparison <- sub("_FDRq_1.00_LFC_0.00\\.tsv$", "", files[i])
+
+  # subset rows and columns
+  data <- data[data$gene_name %in% h1_genes$gene_name, c("gene_name","logFC", "adj.P.Val")]
+  rownames(data) <- data$gene_name
+  data <- data[match(h1_genes$gene_name, rownames(data)), , drop = FALSE]
+
+  # ensure numeric (in case it was read as character)
+  data$logFC <- round(as.numeric(data$logFC), 4)
+  data$adj.P.Val <- as.numeric(data$adj.P.Val)
+
+  # assign logFC column
+  h1_lfc[[comparison]] <- data$logFC
+}
+remove(data)
+
+# rename columns
+colnames(h1_lfc) <- c("E. coli Old", "E. coli Young")
+h1_lfc <- h1_lfc[,c(2,1)]
+
+# set heatmap colors
+paletteLength <- 100
+h1_color_scale <- colorRampPalette(c("cornflowerblue", "white", "red"))(paletteLength)
+h1_breaks <- c(seq(min(h1_lfc), 0, length.out = ceiling(paletteLength/2) + 1), 
+              seq(max(h1_lfc)/paletteLength, max(h1_lfc), length.out = floor(paletteLength/2)))
+h1_meta <- data.frame(category = h1_genes$category)
+rownames(h1_meta) <- rownames(h1_genes)
+h1_ann_colors = list(category = c(immune = "chartreuse2", endothelial = "magenta"))
+
+# save
+pdf(paste0(out, "custom_figures/heatmap1.pdf"), width = 5, height = 6)
+pheatmap::pheatmap(h1_lfc,
+                   main = "Overlapping Up-regulated Genes",
+                   cluster_rows = FALSE,
+                   cluster_cols = FALSE,
+                   angle_col = 0,
+                   annotation_colors = h1_ann_colors,
+                   annotation_row = h1_meta,
+                   color = h1_color_scale,
+                   breaks = h1_breaks)
+
+# cleanup
+remove(h1_genes, h1_lfc, h1_meta, h1_ann_colors)
+```
+
+# Heatmap 2
+- Taking some of the DEGs from...
+  - E.2D.Y vs S.2D.Y up-regulated
+  - E.2D.Y vs S.2D.Y down-regulated
+  - E.2D.O vs S.2D.O up-regulated
+  - E.2D.O vs S.2D.O down-regulated
+```{r}
+# save path
+out <- "../results/both_sexes/"
+
+# genes categories
+h2_categories <- read.delim2("../refs/heatmap_gene_categories.tsv")
+
+# heatmap 1 genes
+h2_genes <- read.delim2(file = "../refs/heatmap2_genes.tsv")
+
+# add category info
+h2_genes <- dplyr::left_join(x = h2_genes, y = h2_categories)
+remove(h2_categories)
+rownames(h2_genes) <- h2_genes$gene_name
+
+# get DEG files
+files <- list.files(paste0(out, "DEGs_with_hbb/DEG_tables/"))
+files <- files[grep("E.2D.+_vs_S.2D.+_1.00_LFC_0.00.tsv", files)]
+
+# init
+h2_lfc <- data.frame(row.names = h2_genes$gene_name)
+
+for (i in seq_along(files)) {
+  # read table
+  data <- read.delim(
+    file = paste0(out, "DEGs_with_hbb/DEG_tables/", files[i]),
+    sep = "\t", check.names = FALSE
+  )
+
+  # comparison name
+  comparison <- sub("_FDRq_1.00_LFC_0.00\\.tsv$", "", files[i])
+
+  # subset rows and columns
+  data <- data[data$gene_name %in% h2_genes$gene_name, c("gene_name","logFC", "adj.P.Val")]
+  rownames(data) <- data$gene_name
+  data <- data[match(h2_genes$gene_name, rownames(data)), , drop = FALSE]
+
+  # ensure numeric (in case it was read as character)
+  data$logFC <- round(as.numeric(data$logFC), 4)
+  data$adj.P.Val <- as.numeric(data$adj.P.Val)
+
+  # assign logFC column
+  h2_lfc[[comparison]] <- data$logFC
+}
+remove(data)
+
+# rename columns
+colnames(h2_lfc) <- c("E. coli Old", "E. coli Young")
+h2_lfc <- h2_lfc[,c(2,1)]
+
+# set heatmap colors
+paletteLength <- 100
+h2_color_scale <- colorRampPalette(c("cornflowerblue", "white", "red"))(paletteLength)
+h2_breaks <- c(seq(min(h2_lfc), 0, length.out = ceiling(paletteLength/2) + 1), 
+              seq(max(h2_lfc)/paletteLength, max(h2_lfc), length.out = floor(paletteLength/2)))
+h2_meta <- data.frame(category = h2_genes$category)
+rownames(h2_meta) <- rownames(h2_genes)
+h2_ann_colors = list(category = c(immune = "chartreuse2", endothelial = "magenta",
+                                  proliferative = "yellow", metabolism = "cyan"))
+
+# save
+pdf(paste0(out, "custom_figures/heatmap2.pdf"), width = 7, height = 6)
+pheatmap::pheatmap(h2_lfc,
+                   main = "E. coli 2 Days DEGs",
+                   cluster_rows = FALSE,
+                   cluster_cols = FALSE,
+                   angle_col = 0,
+                   annotation_colors = h2_ann_colors,
+                   annotation_row = h2_meta,
+                   color = h2_color_scale,
+                   breaks = h2_breaks)
+```
+
+# Heatmaps
+## 2 days with pval
 - sex specific filtering but both sexes comparison \
 - FDRq < 0.05 and LFC=0 \
 - Heatmap for 2-day timepoints \
 ```{r}
 # save path
-out <- "../results/sex_specific_filtering_but_both_sexes_comparison/"
+out <- "../results/both_sexes/"
 
 # genes of interest
 goi_2D <- c("S100a8","Lcn2","S100a9","Ctla2a","Lrg1","Top2a","Pkn3","Igsf6",
@@ -142,7 +304,7 @@ pheatmap::pheatmap(lfc.df,
 ## 2 days w/out pval
 ```{r}
 # save path
-out <- "../results/sex_specific_filtering_but_both_sexes_comparison/"
+out <- "../results/both_sexes/"
 
 # genes of interest
 goi_2D <- c("S100a8","Lcn2","S100a9","Ctla2a","Lrg1","Top2a","Pkn3","Igsf6",
@@ -205,7 +367,7 @@ pheatmap::pheatmap(lfc.df,
 ## 21 days w/ pval
 ```{r}
 # save path
-out <- "../results/sex_specific_filtering_but_both_sexes_comparison/"
+out <- "../results/both_sexes/"
 
 # genes of interest
 goi_21D <- c("Hif3a", "Tlr13", "Xdh", "Skap1", "Ccdc88a", "Kcnb2", "Grik1", 
@@ -272,7 +434,7 @@ pheatmap::pheatmap(lfc.df,
 ## 21 days w/out pval
 ```{r}
 # save path
-out <- "../results/sex_specific_filtering_but_both_sexes_comparison/"
+out <- "../results/both_sexes/"
 
 # genes of interest
 goi_21D <- c("Hif3a", "Tlr13", "Xdh", "Skap1", "Ccdc88a", "Kcnb2", "Grik1", 
@@ -343,7 +505,7 @@ model <- "DEGs_with_hbb/"
 
 # read tables
 E2DY_vs_S2DY <- read.delim(
-  paste0("../results/sex_specific_filtering_but_both_sexes_comparison/", 
+  paste0("../results/both_sexes/", 
          model, "DEG_tables/E.2D.Y_vs_S.2D.Y_FDRq_1.00_LFC_0.00.tsv"))
 E2DO_vs_S2DO <- read.delim(
   paste0("../results/filtered_samples_both_sexes/", 
@@ -407,7 +569,7 @@ upset_gene <- upset_gene + ggtitle(paste0("E.2D vs S.2D, FDRq < ", format(thresh
                                           ", |LFC| > ", format(myLfc, nsmall = 2)))
 
 # save
-pdf(paste0("../results/sex_specific_filtering_but_both_sexes_comparison/",
+pdf(paste0("../results/both_sexes/",
            model, "upset/E.2D_vs_S.2D_both_sexes_FDRq_", 
            format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), "_upset.pdf"), 
     height = 6, width = 10)
@@ -436,7 +598,7 @@ exclusive_intersection_df <-
 
 # save
 write.table(x = exclusive_intersection_df,
-            file = paste0("../results/sex_specific_filtering_but_both_sexes_comparison/",
+            file = paste0("../results/both_sexes/",
                           model, "upset/E.2D_vs_S.2D_both_sexes_FDRq_", 
                           format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), 
                           "_results.tsv"),
@@ -456,7 +618,7 @@ model <- "DEGs_with_hbb/"
 
 # read tables
 E21DY_vs_S21DY <- read.delim(
-  paste0("../results/sex_specific_filtering_but_both_sexes_comparison/", 
+  paste0("../results/both_sexes/", 
          model, "DEG_tables/E.21D.Y_vs_S.21D.Y_FDRq_1.00_LFC_0.00.tsv"))
 E21DO_vs_S21DO <- read.delim(
   paste0("../results/filtered_samples_both_sexes/", 
@@ -520,7 +682,7 @@ upset_gene <- upset_gene + ggtitle(paste0("E.21D vs S.21D, FDRq < ", format(thre
                                           ", |LFC| > ", format(myLfc, nsmall = 2)))
 
 # save
-pdf(paste0("../results/sex_specific_filtering_but_both_sexes_comparison/",
+pdf(paste0("../results/both_sexes/",
            model, "upset/E.21D_vs_S.21D_both_sexes_FDRq_", 
            format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), "_upset.pdf"), 
     height = 6, width = 10)
@@ -549,8 +711,8 @@ exclusive_intersection_df <-
 
 # save
 write.table(x = exclusive_intersection_df,
-            file = paste0("../results/sex_specific_filtering_but_both_sexes_comparison/",
-                          model, "upset/E.2D_vs_S.2D_both_sexes_FDRq_", 
+            file = paste0("../results/both_sexes/",
+                          model, "upset/E.21D_vs_S.21D_both_sexes_FDRq_", 
                           format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), 
                           "_results.tsv"),
             sep = "\t",
@@ -570,13 +732,13 @@ model <- "DEGs_with_hbb/"
 
 # read tables
 E2DY_vs_S2DY <- read.delim(
-  paste0("../results/sex_specific_filtering_but_both_sexes_comparison/", 
+  paste0("../results/both_sexes/", 
          model, "DEG_tables/E.2D.Y_vs_S.2D.Y_FDRq_1.00_LFC_0.00.tsv"))
 E2DO_vs_S2DO <- read.delim(
   paste0("../results/filtered_samples_both_sexes/", 
          model, "DEG_tables/E.2D.O_vs_S.2D.O_FDRq_1.00_LFC_0.00.tsv"))
 E21DY_vs_S21DY <- read.delim(
-  paste0("../results/sex_specific_filtering_but_both_sexes_comparison/", 
+  paste0("../results/both_sexes/", 
          model, "DEG_tables/E.21D.Y_vs_S.21D.Y_FDRq_1.00_LFC_0.00.tsv"))
 E21DO_vs_S21DO <- read.delim(
   paste0("../results/filtered_samples_both_sexes/", 
@@ -657,7 +819,7 @@ upset_gene <- upset_gene + ggtitle(paste0("E. coli vs Saline, FDRq < ", format(t
                                           ", |LFC| > ", format(myLfc, nsmall = 2)))
 
 # save
-pdf(paste0("../results/sex_specific_filtering_but_both_sexes_comparison/",
+pdf(paste0("../results/both_sexes/",
            model, "upset/E_vs_S_both_sexes_FDRq_", 
            format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), "_upset.pdf"), 
     height = 6, width = 10)
@@ -686,7 +848,7 @@ exclusive_intersection_df <-
 
 # save
 write.table(x = exclusive_intersection_df,
-            file = paste0("../results/sex_specific_filtering_but_both_sexes_comparison/",
+            file = paste0("../results/both_sexes/",
                           model, "upset/E.2D_vs_S.2D_both_sexes_FDRq_", 
                           format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), 
                           "_results.tsv"),
@@ -705,7 +867,7 @@ model <- "DEGs_with_hbb/"
 
 # read tables
 ss_filt <- read.delim(
-  paste0("../results/sex_specific_filtering_but_both_sexes_comparison/", 
+  paste0("../results/both_sexes/", 
          model, "DEG_tables/E.2D.O_vs_S.2D.O_FDRq_1.00_LFC_0.00.tsv"))
 bs_filt <- read.delim(
   paste0("../results/filtered_samples_both_sexes/", 
@@ -818,7 +980,7 @@ model <- "DEGs_with_hbb/"
 
 # read tables
 ss_filt <- read.delim(
-  paste0("../results/sex_specific_filtering_but_both_sexes_comparison/", 
+  paste0("../results/both_sexes/", 
          model, "DEG_tables/E.21D.Y_vs_S.21D.Y_FDRq_1.00_LFC_0.00.tsv"))
 bs_filt <- read.delim(
   paste0("../results/filtered_samples_both_sexes/", 
@@ -931,7 +1093,7 @@ model <- "DEGs_with_hbb/"
 
 # read tables
 ss_filt <- read.delim(
-  paste0("../results/sex_specific_filtering_but_both_sexes_comparison/", 
+  paste0("../results/both_sexes/", 
          model, "DEG_tables/E.21D.O_vs_S.21D.O_FDRq_1.00_LFC_0.00.tsv"))
 bs_filt <- read.delim(
   paste0("../results/filtered_samples_both_sexes/", 
@@ -1041,7 +1203,7 @@ goi <- c("S100a8", "S100a9", "Lcn2", "Mpeg1", "Csf3r", "Adgre1", "Vim", "Pecam1"
          "Itgam", "Sgk1", "Nfkbia", "Acot11", "Smox", "Mfsd2a")
 
 # Output directories and file paths
-out <- "../results/sex_specific_filtering_but_both_sexes_comparison/"
+out <- "../results/both_sexes/"
 model <- "DEGs_with_hbb/"
 
 # set variables
@@ -1155,7 +1317,7 @@ goi <- c("S100a8", "S100a9", "Lcn2", "Mpeg1", "Csf3r", "Adgre1", "C1qa", "C1qb",
          "C1qc", "Top2a", "Tnfsf10", "Sqle", "Hmgcr", "Insig1")
 
 # Output directories and file paths
-out <- "../results/sex_specific_filtering_but_both_sexes_comparison/"
+out <- "../results/both_sexes/"
 model <- "DEGs_with_hbb/"
 
 # set variables

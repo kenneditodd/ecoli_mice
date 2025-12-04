@@ -35,7 +35,7 @@ library(tidyr)
 ```{r set_variables_and_thresholds}
 # source thresholds and output paths
 source("../../refs/thresholds_and_outs.R")
-out <- paste0(out, "pass2/")
+out <- paste0(out, "pass3/")
 
 # single cell functions
 files <- list.files("../../functions", full.names = TRUE)
@@ -44,13 +44,23 @@ invisible(lapply(files, source))
 
 ## Load data
 ```{r load_data}
-mouse.annotated <- readRDS(paste0("../../rObjects/", filtering_method, "_pass2_annotated_seurat_obj.rds"))
+mouse.annotated <- readRDS("../../rObjects/pass3_annotated_seurat_obj.rds")
 ```
 
 ## Check
 ```{r annotated_umap}
-cluster_colors <- get_cluster_colors(
-  num_clusters = length(unique(mouse.annotated$annotated_clusters)))
+cluster_colors <- c(
+  "Astrocytes"  = "#F0E442",
+  "Choroid"     = "#FDB863",
+  "Endothelial" = "#E08214",
+  "Fibroblasts" = "#B35806",
+  "Microglia" = "#542788",
+  "BAM" = "#998EC3",
+  "Neurons 1" = "#0868AC",
+  "Neurons 2" = "#2B8CBE",
+  "Oligodendrocytes" = "#009E73",
+  "OPCs" = "#7FCDBB"
+)
 
 DimPlot(mouse.annotated,
         cols = cluster_colors,
@@ -195,8 +205,13 @@ for (cmp in comparisons) {
 
   # Combine all cell types for this comparison and write once
   all_res <- do.call(rbind, comparison_results)
-  output_file <- file.path(paste0(out, "DEGs/DEG_tables/", g1, "_vs_", g2, "_DEGs.tsv"))
-  write.table(all_res, file = output_file, sep = "\t", quote = FALSE, row.names = FALSE)
+  output_file <- file.path(paste0(out, "DEGs_pseudobulk/DEG_tables/", 
+                                  g1, "_vs_", g2, "_DEGs.tsv"))
+  write.table(all_res,
+              file = output_file, 
+              sep = "\t", 
+              quote = FALSE, 
+              row.names = FALSE)
 }
 ```
 
@@ -1100,14 +1115,14 @@ for (i in 1:length(files)) {
     # save
     if(length(up) > 10) {
       write.table(x = up,
-                  file = paste0(prefix, "_up.tsv"),
+                  file = paste0(prefix, "_up.txt"),
                   quote = FALSE,
                   row.names = FALSE,
                   col.names = FALSE)      
     }
     if (length(down) > 10) {
        write.table(x = down,
-                file = paste0(prefix, "_down.tsv"),
+                file = paste0(prefix, "_down.txt"),
                 quote = FALSE,
                 row.names = FALSE,
                 col.names = FALSE)   

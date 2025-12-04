@@ -37,8 +37,7 @@ for (i in 1:length(samples)) {
     
   # Create Seurat object with Cell Ranger output
   obj <- CreateSeuratObject(
-    Read_CellBender_h5_Mat(paste0("../../counts/", sample, "/outs/", 
-                                  sample, "_cellbender_filtered.h5"))
+    Read10X(data.dir = paste0("../../counts/", sample, "/outs/filtered_feature_bc_matrix"))
   )
   
   # Add sample as prefix to cell names
@@ -123,4 +122,4 @@ new_order <- mouse@meta.data %>%
 mouse <- mouse[, new_order]
 
 # save with compression
-saveRDS(mouse, "../../rObjects/cellbender_merged_before_filtering.rds", compress = FALSE)
+saveRDS(mouse, "../../rObjects/cellranger_merged_before_filtering.rds", compress = FALSE)

@@ -42,7 +42,7 @@ out <- paste0(out, "pass1/")
 ## Load data
 ```{r read_seurat_obj}
 # load data
-mouse <- readRDS("../../rObjects/cellbender_merged_before_filtering.rds")
+mouse <- readRDS("../../rObjects/cellranger_merged_before_filtering.rds")
 ```
 
 # Pre-filtering QC

@@ -1,0 +1,61 @@
+# git and RStudio project files
+.git
+.Rhistory
+.Rproj.user
+ecoli_mice.Rproj
+
+
+############ BULK RNA ############
+
+# Allow .gitkeep first, then ignore folders
+!bulkRNA/featureCounts/.gitkeep
+bulkRNA/featureCounts/
+!bulkRNA/rawQC/.gitkeep
+bulkRNA/rawQC/
+!bulkRNA/results/.gitkeep
+bulkRNA/results/
+!bulkRNA/rObjects/.gitkeep
+bulkRNA/rObjects/
+!bulkRNA/starAligned/.gitkeep
+bulkRNA/starAligned/
+!bulkRNA/trimmedQC/.gitkeep
+bulkRNA/trimmedQC/
+!bulkRNA/trimmedReads/.gitkeep
+bulkRNA/trimmedReads/
+
+# Snakemake files
+bulkRNA/.snakemake
+
+# References
+bulkRNA/refs/.env
+bulkRNA/refs/nash_meta.tsv
+bulkRNA/refs/og*
+bulkRNA/refs/starGenomeDir
+bulkRNA/refs/tgen_meta.tsv
+bulkRNA/refs/transcript_quant
+
+# Scripts
+bulkRNA/scripts/00*
+!bulkRNA/scripts/13_shiny_app/data/.gitkeep
+bulkRNA/scripts/13_shiny_app/data/
+bulkRNA/scripts/13_shiny_app/prep/
+bulkRNA/scripts/13_shiny_app/rsconnect/
+bulkRNA/scripts/backup_shiny
+
+# Logs
+bulkRNA/scripts/logs
+
+############ SINGLE CELL ############
+
+# scRNA
+scRNA/counts
+scRNA/refs/.env
+scRNA/refs/nash_meta.tsv
+scRNA/refs/og*
+scRNA/refs/umap_params.csv
+scRNA/results
+scRNA/rObjects
+scRNA/scripts/*/logs
+scRNA/scripts/*/old
+scRNA/scripts/00*
+scRNA/*/*/without_integration*

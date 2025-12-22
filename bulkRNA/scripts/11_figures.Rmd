@@ -24,7 +24,7 @@ library(plotly)
 library(tidyr)
 library(ComplexUpset)
 library(UpSetR)
-library(gridExtra)   # grid.arrange()
+library(gridExtra)
 library(ggrepel)
 ```
 
@@ -68,169 +68,144 @@ get_exclusive_intersection_genes <- function(upset_data, list_input) {
 }
 ```
 
-# Heatmap 1
-- Created an upset plot with 4 genes lists
-  - E.2D.Y vs S.2D.Y up-regulated
-  - E.2D.Y vs S.2D.Y down-regulated
-  - E.2D.O vs S.2D.O up-regulated
-  - E.2D.O vs S.2D.O down-regulated
-- There were 99 overlapping genes for the up-regulated gene lists
-- Create a heatmap looking at the immune and endothelial overlapping genes
+# Z-score heatmap
+## 2 days, both sexes, CPM
+### Z-score log2CPM
 ```{r}
-# save path
-out <- "../results/both_sexes/"
+# load data
+dge_obj <- readRDS(
+  "../rObjects/filtered_samples_sex_specific_DGEList_filtered_normalized.rds"
+)
 
-# genes categories
-h1_categories <- read.delim2("../refs/heatmap_gene_categories.tsv")
+# get log CPM
+log_cpm <- cpm(dge_obj, log = TRUE, prior.count = 0.5)
 
-# heatmap 1 genes
-h1_genes <- read.delim2(file = "../refs/heatmap1_genes.tsv")
+# mean and SD across all samples per gene
+gene_mean <- rowMeans(log_cpm)
+gene_sd   <- apply(log_cpm, 1, sd)
 
-# add category info
-h1_genes <- dplyr::left_join(x = h1_genes, y = h1_categories)
-remove(h1_categories)
-rownames(h1_genes) <- h1_genes$gene_name
+# get mean log CPM per group per gene
+meta <- dge_obj$samples[,c("sample","group")]
+group_list <- split(colnames(log_cpm), meta$group)
+group_means <- sapply(group_list, function(samps) {
+    rowMeans(log_cpm[, samps, drop = FALSE])
+})
 
-# get DEG files
-files <- list.files(paste0(out, "DEGs_with_hbb/DEG_tables/"))
-files <- files[grep("E.2D.+_vs_S.2D.+_1.00_LFC_0.00.tsv", files)]
+# z-score
+group_z <- sweep(group_means, 1, gene_mean, "-")
+group_z <- sweep(group_z, 1, gene_sd, "/")
+group_z <- as.data.frame(group_z)
 
-# init
-h1_lfc <- data.frame(row.names = h1_genes$gene_name)
+# save table
+write.table(x = group_z,
+            file = "../results/figures/zscore_log2CPM_per_group.tsv",
+            quote = FALSE,
+            sep = "\t",
+            row.names = TRUE,
+            col.names = TRUE)
+```
 
-for (i in seq_along(files)) {
-  # read table
-  data <- read.delim(
-    file = paste0(out, "DEGs_with_hbb/DEG_tables/", files[i]),
-    sep = "\t", check.names = FALSE
-  )
+### Plot
+```{r}
+# subset to groups of interest
+group_z <- group_z[,c("S.2D.Y", "E.2D.Y", "S.2D.O", "E.2D.O")]
 
-  # comparison name
-  comparison <- sub("_FDRq_1.00_LFC_0.00\\.tsv$", "", files[i])
-
-  # subset rows and columns
-  data <- data[data$gene_name %in% h1_genes$gene_name, c("gene_name","logFC", "adj.P.Val")]
-  rownames(data) <- data$gene_name
-  data <- data[match(h1_genes$gene_name, rownames(data)), , drop = FALSE]
-
-  # ensure numeric (in case it was read as character)
-  data$logFC <- round(as.numeric(data$logFC), 4)
-  data$adj.P.Val <- as.numeric(data$adj.P.Val)
-
-  # assign logFC column
-  h1_lfc[[comparison]] <- data$logFC
-}
-remove(data)
-
-# rename columns
-colnames(h1_lfc) <- c("E. coli Old", "E. coli Young")
-h1_lfc <- h1_lfc[,c(2,1)]
+# subset to genes of interest
+genes <- readLines("../refs/2D_both_sexes_zscore_CPM_heatmap_genes.tsv")
+group_z <- group_z[genes,]
 
 # set heatmap colors
 paletteLength <- 100
-h1_color_scale <- colorRampPalette(c("cornflowerblue", "white", "red"))(paletteLength)
-h1_breaks <- c(seq(min(h1_lfc), 0, length.out = ceiling(paletteLength/2) + 1), 
-              seq(max(h1_lfc)/paletteLength, max(h1_lfc), length.out = floor(paletteLength/2)))
-h1_meta <- data.frame(category = h1_genes$category)
-rownames(h1_meta) <- rownames(h1_genes)
-h1_ann_colors = list(category = c(immune = "chartreuse2", endothelial = "magenta"))
+p_color_scale <- colorRampPalette(c("cornflowerblue", "white", "red"))(paletteLength)
+p_breaks <- c(seq(min(group_z), 0, length.out = ceiling(paletteLength/2) + 1), 
+              seq(max(group_z)/paletteLength, max(group_z), length.out = floor(paletteLength/2)))
 
 # save
-pdf(paste0(out, "custom_figures/heatmap1.pdf"), width = 5, height = 6)
-pheatmap::pheatmap(h1_lfc,
-                   main = "Overlapping Up-regulated Genes",
+pdf("../results/figures/2D_both_sexes_zscore_log2CPM_heatmap.pdf", 
+    width = 5, height = 6)
+#png(paste0(out, "custom_figures/heatmap1.png"), width = 4000, height = 4800, res = 600)
+pheatmap::pheatmap(group_z,
+                   main = "Z-scored Log2(CPM)",
                    cluster_rows = FALSE,
                    cluster_cols = FALSE,
                    angle_col = 0,
-                   annotation_colors = h1_ann_colors,
-                   annotation_row = h1_meta,
-                   color = h1_color_scale,
-                   breaks = h1_breaks)
-
-# cleanup
-remove(h1_genes, h1_lfc, h1_meta, h1_ann_colors)
+                   color = p_color_scale,
+                   breaks = p_breaks)
 ```
 
-# Heatmap 2
-- Taking some of the DEGs from...
-  - E.2D.Y vs S.2D.Y up-regulated
-  - E.2D.Y vs S.2D.Y down-regulated
-  - E.2D.O vs S.2D.O up-regulated
-  - E.2D.O vs S.2D.O down-regulated
+## 2 days, sex-specific, CPM
+### Z-score log2CPM
 ```{r}
-# save path
-out <- "../results/both_sexes/"
+# load data
+dge_obj <- readRDS(
+  "../rObjects/DGEList_filtered_normalized.rds"
+)
 
-# genes categories
-h2_categories <- read.delim2("../refs/heatmap_gene_categories.tsv")
+# get log CPM
+log_cpm <- cpm(dge_obj, log = TRUE, prior.count = 0.5)
 
-# heatmap 1 genes
-h2_genes <- read.delim2(file = "../refs/heatmap2_genes.tsv")
+# mean and SD across all samples per gene
+gene_mean <- rowMeans(log_cpm)
+gene_sd   <- apply(log_cpm, 1, sd)
 
-# add category info
-h2_genes <- dplyr::left_join(x = h2_genes, y = h2_categories)
-remove(h2_categories)
-rownames(h2_genes) <- h2_genes$gene_name
+# get mean log CPM per group2 per gene
+meta <- dge_obj$samples[,c("sample","group2")]
+group2_list <- split(colnames(log_cpm), meta$group2)
+group2_means <- sapply(group2_list, function(samps) {
+    rowMeans(log_cpm[, samps, drop = FALSE])
+})
 
-# get DEG files
-files <- list.files(paste0(out, "DEGs_with_hbb/DEG_tables/"))
-files <- files[grep("E.2D.+_vs_S.2D.+_1.00_LFC_0.00.tsv", files)]
+# z-score
+group2_z <- sweep(group2_means, 1, gene_mean, "-")
+group2_z <- sweep(group2_z, 1, gene_sd, "/")
+group2_z <- as.data.frame(group2_z)
 
-# init
-h2_lfc <- data.frame(row.names = h2_genes$gene_name)
+# save table
+write.table(x = group2_z,
+            file = "../results/figures/zscore_log2CPM_per_group2.tsv",
+            quote = FALSE,
+            sep = "\t",
+            row.names = TRUE,
+            col.names = TRUE)
+```
 
-for (i in seq_along(files)) {
-  # read table
-  data <- read.delim(
-    file = paste0(out, "DEGs_with_hbb/DEG_tables/", files[i]),
-    sep = "\t", check.names = FALSE
-  )
+### Plot
+```{r}
+# subset to groups of interest
+group2_z <- group2_z[,c("S.2D.Y.F", "E.2D.Y.F", "S.2D.Y.M", "E.2D.Y.M",
+                        "S.2D.O.F", "E.2D.O.F", "S.2D.O.M", "E.2D.O.M",
+                        "S.21D.Y.F", "E.21D.Y.F", "S.21D.Y.M", "E.21D.Y.M",
+                        "S.21D.O.F","E.21D.O.F", "S.21D.O.M", "E.21D.O.M")]
 
-  # comparison name
-  comparison <- sub("_FDRq_1.00_LFC_0.00\\.tsv$", "", files[i])
+group2_z <- group2_z[,c("E.2D.Y.F", "E.2D.Y.M",
+                        "E.2D.O.F", "E.2D.O.M",
+                        "E.21D.Y.F", "E.21D.Y.M",
+                        "E.21D.O.F", "E.21D.O.M")]
 
-  # subset rows and columns
-  data <- data[data$gene_name %in% h2_genes$gene_name, c("gene_name","logFC", "adj.P.Val")]
-  rownames(data) <- data$gene_name
-  data <- data[match(h2_genes$gene_name, rownames(data)), , drop = FALSE]
-
-  # ensure numeric (in case it was read as character)
-  data$logFC <- round(as.numeric(data$logFC), 4)
-  data$adj.P.Val <- as.numeric(data$adj.P.Val)
-
-  # assign logFC column
-  h2_lfc[[comparison]] <- data$logFC
-}
-remove(data)
-
-# rename columns
-colnames(h2_lfc) <- c("E. coli Old", "E. coli Young")
-h2_lfc <- h2_lfc[,c(2,1)]
+# subset to genes of interest
+genes <- readLines("../refs/sex_specific_zscore_log2CPM_heatmap_genes.tsv")
+group2_z <- group2_z[genes,]
 
 # set heatmap colors
 paletteLength <- 100
-h2_color_scale <- colorRampPalette(c("cornflowerblue", "white", "red"))(paletteLength)
-h2_breaks <- c(seq(min(h2_lfc), 0, length.out = ceiling(paletteLength/2) + 1), 
-              seq(max(h2_lfc)/paletteLength, max(h2_lfc), length.out = floor(paletteLength/2)))
-h2_meta <- data.frame(category = h2_genes$category)
-rownames(h2_meta) <- rownames(h2_genes)
-h2_ann_colors = list(category = c(immune = "chartreuse2", endothelial = "magenta",
-                                  proliferative = "yellow", metabolism = "cyan"))
+p_color_scale <- colorRampPalette(c("cornflowerblue", "white", "red"))(paletteLength)
+p_breaks <- c(seq(min(group2_z), 0, length.out = ceiling(paletteLength/2) + 1), 
+              seq(max(group2_z)/paletteLength, max(group2_z), length.out = floor(paletteLength/2)))
 
 # save
-pdf(paste0(out, "custom_figures/heatmap2.pdf"), width = 7, height = 6)
-pheatmap::pheatmap(h2_lfc,
-                   main = "E. coli 2 Days DEGs",
+pdf("../results/figures/sex_specific_zscore_log2CPM_heatmap.pdf",
+    width = 12, height = 6)
+    
+pheatmap::pheatmap(group2_z,
+                   main = "Z-scored Log2(CPM)",
                    cluster_rows = FALSE,
                    cluster_cols = FALSE,
-                   angle_col = 0,
-                   annotation_colors = h2_ann_colors,
-                   annotation_row = h2_meta,
-                   color = h2_color_scale,
-                   breaks = h2_breaks)
+                   angle_col = 45,
+                   color = p_color_scale,
+                   breaks = p_breaks)
 ```
 
-# Heatmaps
+# Fold change heatmaps
 ## 2 days with pval
 - sex specific filtering but both sexes comparison \
 - FDRq < 0.05 and LFC=0 \
@@ -301,201 +276,333 @@ pheatmap::pheatmap(lfc.df,
                    )
 ```
 
-## 2 days w/out pval
+# Sex specific upset
+## 2 day E.coli vs saline with baseline
+### Plot
 ```{r}
-# save path
-out <- "../results/both_sexes/"
+# set variables
+thresh <- 0.05
+myLfc <- 0
+model <- "DEGs_with_hbb/"
+out <- "../results/sex_specific/"
 
-# genes of interest
-goi_2D <- c("S100a8","Lcn2","S100a9","Ctla2a","Lrg1","Top2a","Pkn3","Igsf6",
-            "Srarp","Cd52","Edn1","Vil1","Rhoh","Tmem252","Vwf","Myct1",
-            "Clec14a","Lyz1","Fermt1","Gpr160","Tnfsf10","Slc38a5","Ctss",
-            "Ly6a","C1qa","C1qb","C1qc","Csf3r","Mpeg1","Vim","Pecam1",
-            "Adgre1","Itgam","Hif3a","Sgk1","Smox","Mfsd2a","Ly6c1","Tcim")
+# read tables
+S2DYF_vs_S2DYM <- read.delim(
+  paste0("../results/sex_specific/", 
+         model, "DEG_tables/S.2D.Y.F_vs_S.2D.Y.M_FDRq_1.00_LFC_0.00.tsv"))
+E2DYF_vs_E2DYM <- read.delim(
+  paste0("../results/sex_specific/", 
+         model, "DEG_tables/E.2D.Y.F_vs_E.2D.Y.M_FDRq_1.00_LFC_0.00.tsv"))
+S2DOF_vs_S2DOM <- read.delim(
+  paste0("../results/sex_specific/", 
+         model, "DEG_tables/S.2D.O.F_vs_S.2D.O.M_FDRq_1.00_LFC_0.00.tsv"))
+E2DOF_vs_E2DOM <- read.delim(
+  paste0("../results/sex_specific/", 
+         model, "DEG_tables/E.2D.O.F_vs_E.2D.O.M_FDRq_1.00_LFC_0.00.tsv"))
 
-# get DEG files
-files <- list.files(paste0(out, "DEGs_with_hbb/DEG_tables/"))
-files <- files[grep("E.2D.+_vs_S.2D.+_1.00_LFC_0.00.tsv", files)]
+# set row names
+rownames(S2DYF_vs_S2DYM) <- S2DYF_vs_S2DYM$gene_name_unique
+rownames(E2DYF_vs_E2DYM) <- E2DYF_vs_E2DYM$gene_name_unique
+rownames(S2DOF_vs_S2DOM) <- S2DOF_vs_S2DOM$gene_name_unique
+rownames(E2DOF_vs_E2DOM) <- E2DOF_vs_E2DOM$gene_name_unique
 
-# init
-lfc.df <- data.frame(row.names = goi_2D)
-adjpval.df <- data.frame(row.names = goi_2D)
+# filter on pval
+S2DYF_vs_S2DYM <- S2DYF_vs_S2DYM[S2DYF_vs_S2DYM$adj.P.Val < thresh,]
+E2DYF_vs_E2DYM <- E2DYF_vs_E2DYM[E2DYF_vs_E2DYM$adj.P.Val < thresh,]
+S2DOF_vs_S2DOM <- S2DOF_vs_S2DOM[S2DOF_vs_S2DOM$adj.P.Val < thresh,]
+E2DOF_vs_E2DOM <- E2DOF_vs_E2DOM[E2DOF_vs_E2DOM$adj.P.Val < thresh,]
 
-for (i in seq_along(files)) {
-  # read table
-  data <- read.delim(
-    file = paste0(out, "DEGs_with_hbb/DEG_tables/", files[i]),
-    sep = "\t", check.names = FALSE
-  )
+# up/down-reg
+S2DYF_vs_S2DYM_up <- subset(S2DYF_vs_S2DYM$gene_name_unique, S2DYF_vs_S2DYM$logFC > myLfc)
+S2DYF_vs_S2DYM_dn <- subset(S2DYF_vs_S2DYM$gene_name_unique, S2DYF_vs_S2DYM$logFC < -myLfc)
+E2DYF_vs_E2DYM_up <- subset(E2DYF_vs_E2DYM$gene_name_unique, E2DYF_vs_E2DYM$logFC > myLfc)
+E2DYF_vs_E2DYM_dn <- subset(E2DYF_vs_E2DYM$gene_name_unique, E2DYF_vs_E2DYM$logFC < -myLfc)
+S2DOF_vs_S2DOM_up <- subset(S2DOF_vs_S2DOM$gene_name_unique, S2DOF_vs_S2DOM$logFC > myLfc)
+S2DOF_vs_S2DOM_dn <- subset(S2DOF_vs_S2DOM$gene_name_unique, S2DOF_vs_S2DOM$logFC < -myLfc)
+E2DOF_vs_E2DOM_up <- subset(E2DOF_vs_E2DOM$gene_name_unique, E2DOF_vs_E2DOM$logFC > myLfc)
+E2DOF_vs_E2DOM_dn <- subset(E2DOF_vs_E2DOM$gene_name_unique, E2DOF_vs_E2DOM$logFC < -myLfc)
 
-  # comparison name
-  comparison <- sub("_FDRq_1.00_LFC_0.00\\.tsv$", "", files[i])
+# create list
+list_input <- list("E.2D.O.F vs E.2D.O.M up-regulated" = E2DOF_vs_E2DOM_up,
+                   "E.2D.O.F vs E.2D.O.M down-regulated" = E2DOF_vs_E2DOM_dn,
+                   "S.2D.O.F vs S.2D.O.M up-regulated" = S2DOF_vs_S2DOM_up,
+                   "S.2D.O.F vs S.2D.O.M down-regulated" = S2DOF_vs_S2DOM_dn,
+                   "E.2D.Y.F vs E.2D.Y.M up-regulated" = E2DYF_vs_E2DYM_up,
+                   "E.2D.Y.F vs E.2D.Y.M down-regulated" = E2DYF_vs_E2DYM_dn,
+                   "S.2D.Y.F vs S.2D.Y.M up-regulated" = S2DYF_vs_S2DYM_up,
+                   "S.2D.Y.F vs S.2D.Y.M down-regulated" = S2DYF_vs_S2DYM_dn)
+data <- fromList(list_input)
+  
+# store names
+names <- colnames(data)
+  
+# plot
+upset_gene <- ComplexUpset::upset(data, 
+				  names,
+				  set_sizes=(
+					upset_set_size()
+					+ geom_text(aes(label=..count..), hjust=1.1, stat='count')
+					+ expand_limits(y=2000)),
+				  queries = list(upset_query("E.2D.O.F vs E.2D.O.M up-regulated", fill = "red"),
+								 upset_query("E.2D.O.F vs E.2D.O.M down-regulated", fill = "blue"),
+								 upset_query("S.2D.O.F vs S.2D.O.M up-regulated", fill = "red"),
+								 upset_query("S.2D.O.F vs S.2D.O.M down-regulated", fill = "blue"),
+								 upset_query("E.2D.Y.F vs E.2D.Y.M up-regulated", fill = "red"),
+								 upset_query("E.2D.Y.F vs E.2D.Y.M down-regulated", fill = "blue"),
+								 upset_query("S.2D.Y.F vs S.2D.Y.M up-regulated", fill = "red"),
+								 upset_query("S.2D.Y.F vs S.2D.Y.M down-regulated", fill = "blue")),
+				  base_annotations = list('Intersection size' = (
+					intersection_size(bar_number_threshold=1, width=0.5)
+					+ scale_y_continuous(expand=expansion(mult=c(0, 0.05)),limits = c(0,1600)) # space on top
+					+ theme(
+						  # hide grid lines
+						  panel.grid.major=element_blank(),
+						  panel.grid.minor=element_blank(),
+						  # show axis lines
+						  axis.line=element_line(colour='black')))),
+				  stripes = upset_stripes(
+					geom=geom_segment(size=12),  # make the stripes larger
+					colors=c('grey95', 'white')),
+				  # to prevent connectors from getting the colorured
+				  # use `fill` instead of `color`, together with `shape='circle filled'`
+				  matrix = intersection_matrix(
+					geom=geom_point(
+					  shape='circle filled',
+					  size=3,
+					  stroke=0.45)),
+				  sort_sets=FALSE,
+				  sort_intersections='descending'
+				)
 
-  # filter + order to goi_2D
-  data <- data[data$gene_name %in% goi_2D, c("gene_name","logFC", "adj.P.Val")]
-  rownames(data) <- data$gene_name
-  data <- data[match(goi_2D, rownames(data)), , drop = FALSE]
-
-  # ensure numeric (in case it was read as character)
-  data$logFC <- round(as.numeric(data$logFC), 4)
-  data$adj.P.Val <- as.numeric(data$adj.P.Val)
-
-  # assign just the logFC column
-  lfc.df[[comparison]] <- data$logFC
-  adjpval.df[[comparison]] <- data$adj.P.Val
-}
-
-# set heatmap colors and names
-paletteLength <- 100
-myColor <- colorRampPalette(c("cornflowerblue", "white", "red"))(paletteLength)
-myBreaks <- c(seq(min(lfc.df), 0, length.out = ceiling(paletteLength/2) + 1), 
-              seq(max(lfc.df)/paletteLength, max(lfc.df), length.out = floor(paletteLength/2)))
+upset_gene <- upset_gene + ggtitle(paste0("FDRq < ", format(thresh, nsmall = 2),
+                                          ", |LFC| > ", format(myLfc, nsmall = 2)))
 
 # save
-pdf(paste0(out, "custom_figures/2D_logFC_heatmap.pdf"), width = 5, height = 10)
-
-
-pheatmap::pheatmap(lfc.df,
-                   main = "logFC for 2 Day Time Points",
-                   cluster_rows = FALSE,
-                   cluster_cols = FALSE,
-                   annotation_colors = ann_colors,
-                   color = myColor,
-                   breaks = myBreaks)
+pdf(paste0(out, model, "/upset/2_day_female_vs_male_with_baseline_FDRq_", format(thresh, nsmall = 2), 
+           "_LFC_", format(myLfc, nsmall = 2), ".pdf"), 
+    height = 6, width = 10)
+upset_gene
 ```
 
-## 21 days w/ pval
+### Extract
 ```{r}
-# save path
-out <- "../results/both_sexes/"
+# convert the gene sets into a binary matrix (like UpSet plot input)
+upset_data <- UpSetR::fromList(list_input)
 
-# genes of interest
-goi_21D <- c("Hif3a", "Tlr13", "Xdh", "Skap1", "Ccdc88a", "Kcnb2", "Grik1", 
-             "Adcy8", "H2-K1", "Higd1b", "Atp10a", "C1qtnf4", "Ppp3r1", "Gab3", 
-             "Il1rapl1", "Rasgrp2", "Camk1", "Hs3st5", "Syn3", "Pde4b", "Dlg2", 
-             "Ece2", "Slc22a4", "Pola2", "Dgki")
+# call the function to extract the exclusive intersection genes
+exclusive_intersection_results <- get_exclusive_intersection_genes(upset_data, list_input)
 
-# get DEG files
-files <- list.files(paste0(out, "DEGs_with_hbb/DEG_tables/"))
-files <- files[grep("E.21D.+_vs_S.21D.+_1.00_LFC_0.00.tsv", files)]
-
-# init
-lfc.df <- data.frame(row.names = goi_21D)
-adjpval.df <- data.frame(row.names = goi_21D)
-
-for (i in seq_along(files)) {
-  # read table
-  data <- read.delim(
-    file = paste0(out, "DEGs_with_hbb/DEG_tables/", files[i]),
-    sep = "\t", check.names = FALSE
+# convert the list to a data.frame with two columns: Total genes and gene list
+exclusive_intersection_df <- do.call(rbind, lapply(names(exclusive_intersection_results), function(x) {
+  data.frame(
+    Intersection = x,
+    Total_Genes = exclusive_intersection_results[[x]]$total_genes,
+    Gene_List = exclusive_intersection_results[[x]]$gene_list,
+    stringsAsFactors = FALSE
   )
-
-  # comparison name
-  comparison <- sub("_FDRq_1.00_LFC_0.00\\.tsv$", "", files[i])
-
-  # filter + order to goi_2D
-  data <- data[data$gene_name %in% goi_21D, c("gene_name","logFC", "adj.P.Val")]
-  rownames(data) <- data$gene_name
-  data <- data[match(goi_21D, rownames(data)), , drop = FALSE]
-
-  # ensure numeric (in case it was read as character)
-  data$logFC <- round(as.numeric(data$logFC), 4)
-  data$adj.P.Val <- as.numeric(data$adj.P.Val)
-
-  # assign just the logFC column
-  lfc.df[[comparison]] <- data$logFC
-  adjpval.df[[comparison]] <- data$adj.P.Val
-}
-
-# set heatmap colors and names
-paletteLength <- 100
-myColor <- colorRampPalette(c("cornflowerblue", "white", "red"))(paletteLength)
-myBreaks <- c(seq(min(lfc.df), 0, length.out = ceiling(paletteLength/2) + 1), 
-              seq(max(lfc.df)/paletteLength, max(lfc.df), length.out = floor(paletteLength/2)))
+}))
+exclusive_intersection_df <- 
+  exclusive_intersection_df[order(exclusive_intersection_df$Total_Genes, decreasing = TRUE),]
 
 # save
-pdf(paste0(out, "custom_figures/21D_logFC_adjPVal_heatmap.pdf"), width = 5, height = 10)
-
-
-pheatmap::pheatmap(lfc.df,
-                   main = "logFC and adj.P.Val for 21 Day Time Points",
-                   cluster_rows = FALSE,
-                   cluster_cols = FALSE,
-                   annotation_colors = ann_colors,
-                   color = myColor,
-                   breaks = myBreaks,
-                   display_numbers = round(adjpval.df, digits = 4),
-                   fontsize_number = 12,
-                   number_color = "black",
-                   )
+write.table(x = exclusive_intersection_df,
+            file = paste0(out, model,
+                          "/upset/2_day_female_vs_male_with_baseline_FDRq_",
+                          format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), 
+                          "_results.tsv"),
+            sep = "\t",
+            quote = FALSE,
+            col.names = TRUE,
+            row.names = FALSE)
 ```
 
-
-## 21 days w/out pval
+## 2 day E.coli vs saline
+### Plot
 ```{r}
-# save path
-out <- "../results/both_sexes/"
+# set variables
+thresh <- 0.05
+myLfc <- 0
+model <- "DEGs_with_hbb/"
+out <- "../results/sex_specific/"
 
-# genes of interest
-goi_21D <- c("Hif3a", "Tlr13", "Xdh", "Skap1", "Ccdc88a", "Kcnb2", "Grik1", 
-             "Adcy8", "H2-K1", "Higd1b", "Atp10a", "C1qtnf4", "Ppp3r1", "Gab3", 
-             "Il1rapl1", "Rasgrp2", "Camk1", "Hs3st5", "Syn3", "Pde4b", "Dlg2", 
-             "Ece2", "Slc22a4", "Pola2", "Dgki")
+# get file list
+files <- list.files(paste0(out, model, "metascape_input"))
+files <- files[grepl(pattern = "^E.+2D.+[FM]_vs_S.+2D.+[MF].+_FDRq_0.05.+", x = files)]
 
-# get DEG files
-files <- list.files(paste0(out, "DEGs_with_hbb/DEG_tables/"))
-files <- files[grep("E.21D.+_vs_S.21D.+_1.00_LFC_0.00.tsv", files)]
-
-# init
-lfc.df <- data.frame(row.names = goi_21D)
-adjpval.df <- data.frame(row.names = goi_21D)
-
-for (i in seq_along(files)) {
-  # read table
-  data <- read.delim(
-    file = paste0(out, "DEGs_with_hbb/DEG_tables/", files[i]),
-    sep = "\t", check.names = FALSE
-  )
-
-  # comparison name
-  comparison <- sub("_FDRq_1.00_LFC_0.00\\.tsv$", "", files[i])
-
-  # filter + order to goi_2D
-  data <- data[data$gene_name %in% goi_21D, c("gene_name","logFC", "adj.P.Val")]
-  rownames(data) <- data$gene_name
-  data <- data[match(goi_21D, rownames(data)), , drop = FALSE]
-
-  # ensure numeric (in case it was read as character)
-  data$logFC <- round(as.numeric(data$logFC), 4)
-  data$adj.P.Val <- as.numeric(data$adj.P.Val)
-
-  # assign just the logFC column
-  lfc.df[[comparison]] <- data$logFC
-  adjpval.df[[comparison]] <- data$adj.P.Val
+# loop through files and create variable for each gene list
+for (i in files) {
+  genes <- readLines(paste0(out, model, "metascape_input/", i))
+  genes <- genes[genes != ""]
+  var_name <- gsub(pattern = "regulated_FDRq_0.05_LFC_0.00.txt",
+                   replacement = "",
+                   x = i)
+  assign(x = var_name, value = genes)
 }
 
-# set heatmap colors and names
-paletteLength <- 100
-myColor <- colorRampPalette(c("cornflowerblue", "white", "red"))(paletteLength)
-myBreaks <- c(seq(min(lfc.df), 0, length.out = ceiling(paletteLength/2) + 1), 
-              seq(max(lfc.df)/paletteLength, max(lfc.df), length.out = floor(paletteLength/2)))
+# format in a list
+list_input <- list(
+  "E.2D.O.M vs S.2D.O.M up-regulated" = E.2D.O.M_vs_S.2D.O.M_up,
+  "E.2D.O.M vs S.2D.O.M down-regulated" = E.2D.O.M_vs_S.2D.O.M_down,
+  "E.2D.O.F vs S.2D.O.F up-regulated" = E.2D.O.F_vs_S.2D.O.F_up,
+  "E.2D.O.F vs S.2D.O.F down-regulated" = E.2D.O.F_vs_S.2D.O.F_down,
+  "E.2D.Y.M vs S.2D.Y.M up-regulated" = E.2D.Y.M_vs_S.2D.Y.M_up,
+  "E.2D.Y.M vs S.2D.Y.M down-regulated" = E.2D.Y.M_vs_S.2D.Y.M_down,
+  "E.2D.Y.F vs S.2D.Y.F up-regulated" = E.2D.Y.F_vs_S.2D.Y.F_up,
+  "E.2D.Y.F vs S.2D.Y.F down-regulated" = E.2D.Y.F_vs_S.2D.Y.F_down
+)
+data <- UpSetR::fromList(list_input)
+
+# You will specify the male and female groups by their group number
+group_mapping <- data.frame(
+  Group_Number = 1:8,  # Group numbers
+  Gene_Set_Name = sort(colnames(data))  # Sorted gene set names
+)
+group_mapping
+
+# Assign shapes based on group numbers
+male_groups <- c("3","4","7","8")  # Male group numbers
+female_groups <- c("1","2","5","6")  # Female group numbers
+
+# Assign colors and shapes based on specific group numbers
+upregulated_groups <- c("2","4","6","8")
+downregulated_groups <- c("1","3","5","7")
+
+# Create the basic UpSet plot (no dynamic colors or shapes) to extract n_points
+dummy_upset <- ComplexUpset::upset(
+  data, 
+  colnames(data),  # Use column names (gene sets)
+  set_sizes = ComplexUpset::upset_set_size(),  # Display set sizes
+  sort_sets = FALSE,
+  
+  # Plot the intersection matrix with points (default shapes)
+  matrix = ComplexUpset::intersection_matrix(
+    ggplot2::geom_point(size = 3)  # Simple points without dynamic aesthetics
+  )
+)
+
+# Ensure n_points matches the actual data
+n_points <- nrow(dummy_upset$data)
+print(paste("Number of points being plotted:", n_points))  # Should be 300
+
+# Create empty vectors for colors and shapes
+color_vector <- rep(NA, n_points)  # To store colors
+shape_vector <- rep(NA, n_points)  # To store shapes
+
+# Assign shapes and colors based on group numbers
+for (i in 1:n_points) {
+  group_value <- as.character(dummy_upset$data$group[i])
+  
+  # Assign shapes
+  if (group_value %in% male_groups) {
+    shape_vector[i] <- 22  # Filled square for Male comparisons
+  } else if (group_value %in% female_groups) {
+    shape_vector[i] <- 21  # Circle for Female comparisons
+  }
+  
+  # Assign colors based on group numbers, only if the point is involved in an intersection
+  if (dummy_upset$data$value[i]) {  # If the point is part of an intersection
+    if (group_value %in% upregulated_groups) {
+      color_vector[i] <- "red"  # Red for Up-regulated
+    } else if (group_value %in% downregulated_groups) {
+      color_vector[i] <- "blue"  # Blue for Down-regulated
+    }
+  } else {
+    color_vector[i] <- NA  # No fill for points not involved in intersections
+  }
+}
+
+# Ensure both vectors are of correct length
+if (length(shape_vector) != n_points || length(color_vector) != n_points) {
+  stop("Error: shape_vector or color_vector length does not match the number of plotted points.")
+}
+
+# Print the color_vector to ensure correctness before plotting
+print(unique(color_vector))  # Ensure this contains only valid colors or NA
+
+# Reintroduce dynamic fill color for filled shapes
+upset_gene <- ComplexUpset::upset(
+  data, 
+  colnames(data),
+  set_sizes = (
+    ComplexUpset::upset_set_size() +
+    geom_text(aes(label = ..count..), hjust = 1.1, stat = 'count') +
+    expand_limits(y = 750)
+  ),
+  
+  # Prevent automatic sorting of sets
+  sort_sets = FALSE,
+  
+  matrix = ComplexUpset::intersection_matrix(
+    ggplot2::geom_point(
+      ggplot2::aes(shape = factor(shape_vector), fill = color_vector),  # Fill shapes with dynamic colors
+      size = 3,
+      stroke = 0.45  # Keeps the outline black
+    )
+  ) + ggplot2::scale_shape_manual(
+    name = "Sex",
+    labels = c("Male", "Female"),  # Legend labels
+    values = c(21, 22) # Circle=21, Filled square=22
+    ) + ggplot2::scale_fill_identity(na.translate = FALSE),  # Use the exact colors in color_vector and remove NA fill
+  
+    base_annotations = list(
+    'Intersection size' = (
+      intersection_size(bar_number_threshold = 1, width = 0.5) +
+      scale_y_continuous(expand = expansion(mult = c(0, 0.05)), limits = c(0, 500)) +
+      theme(
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = 'black')
+      )
+    )
+  ),
+)
+
+# Add title
+upset_gene <- upset_gene + 
+  ggtitle("FDRq < 0.05")
+
+# Remove legend
+upset_gene <- upset_gene + theme(legend.position = "None")
+
+# Save temp without legend
+pdf(file = paste0(out, model, "/upset/2_day_ecoli_vs_saline_FDRq_0.05_LFC_0.00.pdf"), 
+    height = 7, 
+    width = 12)
+upset_gene
+```
+
+### Extract
+```{r}
+# convert the gene sets into a binary matrix (like UpSet plot input)
+upset_data <- UpSetR::fromList(list_input)
+
+# call the function to extract the exclusive intersection genes
+exclusive_intersection_results <- get_exclusive_intersection_genes(upset_data, list_input)
+
+# convert the list to a data.frame with two columns: Total genes and gene list
+exclusive_intersection_df <- do.call(rbind, lapply(names(exclusive_intersection_results), function(x) {
+  data.frame(
+    Intersection = x,
+    Total_Genes = exclusive_intersection_results[[x]]$total_genes,
+    Gene_List = exclusive_intersection_results[[x]]$gene_list,
+    stringsAsFactors = FALSE
+  )
+}))
+exclusive_intersection_df <- 
+  exclusive_intersection_df[order(exclusive_intersection_df$Total_Genes, decreasing = TRUE),]
 
 # save
-pdf(paste0(out, "custom_figures/21D_logFC_heatmap.pdf"), width = 5, height = 10)
-
-
-pheatmap::pheatmap(lfc.df,
-                   main = "logFC for 21 Day Time Points",
-                   cluster_rows = FALSE,
-                   cluster_cols = FALSE,
-                   annotation_colors = ann_colors,
-                   color = myColor,
-                   breaks = myBreaks)
+write.table(x = exclusive_intersection_df,
+            file = paste0(out, model, "/upset/2_day_ecoli_vs_saline_FDRq_0.05_LFC_0.00_results.tsv"),
+            sep = "\t",
+            quote = FALSE,
+            col.names = TRUE,
+            row.names = FALSE)
 ```
 
 
-# Upset filtering comparison
-## E.coli vs saline, 2 days, both sexes
+# Both sexes upset
+## E.coli vs saline, 2 days
 ### Plot
 ```{r}
 # set variables
@@ -2009,191 +2116,6 @@ write.table(x = exclusive_intersection_df,
 ```
 
 # Upset Sex Specific
-## Low dose
-```{r}
-# set variables
-out <- "../results/all_samples_sex_specific_combat_analysis/"
-out2 <- "all_samples_sex_specific_combat_analysis"
-model <- "DEGs_with_hbb/"
-
-# get file list
-files <- list.files(paste0(out, model, "metascape_input"))
-files <- files[grepl(pattern = "^L.+", x = files)]
-
-# loop through files and create variable for each gene list
-for (i in files) {
-  genes <- readLines(paste0(out, model, "metascape_input/", i))
-  genes <- genes[genes != ""]
-  var_name <- gsub(pattern = "regulated_FDRq_0.10_LFC_0.20.txt",
-                   replacement = "",
-                   x = i)
-  assign(x = var_name, value = genes)
-}
-
-# format in a list
-list_input <- list(
-  "L.7d.F vs S.7d.F down-regulated" = L.7d.F_vs_S.7d.F_down,
-  "L.7d.M vs S.7d.M down-regulated" = L.7d.M_vs_S.7d.M_down,
-  "L.24h.F vs S.24h.F down-regulated" = L.24h.F_vs_S.24h.F_down,
-  "L.24h.M vs S.24h.M down-regulated" = L.24h.M_vs_S.24h.M_down,
-  "L.8h.F vs S.8h.F down-regulated" = L.8h.F_vs_S.8h.F_down,
-  "L.8h.M vs S.8h.M down-regulated" = L.8h.M_vs_S.8h.M_down,
-  "L.7d.F vs S.7d.F up-regulated" = L.7d.F_vs_S.7d.F_up,
-  "L.7d.M vs S.7d.M up-regulated" = L.7d.M_vs_S.7d.M_up,
-  "L.24h.F vs S.24h.F up-regulated" = L.24h.F_vs_S.24h.F_up,
-  "L.24h.M vs S.24h.M up-regulated" = L.24h.M_vs_S.24h.M_up,
-  "L.8h.F vs S.8h.F up-regulated" = L.8h.F_vs_S.8h.F_up,
-  "L.8h.M vs S.8h.M up-regulated" = L.8h.M_vs_S.8h.M_up
-)
-data <- UpSetR::fromList(list_input)
-
-# You will specify the male and female groups by their group number
-group_mapping <- data.frame(
-  Group_Number = 1:12,  # Group numbers (1-8)
-  Gene_Set_Name = sort(colnames(data))  # Sorted gene set names
-)
-group_mapping
-
-# Assign shapes based on group numbers
-male_groups <- c("3","4","7","8","11","12")  # Male group numbers
-female_groups <- c("1","2","5","6","9","10")  # Female group numbers
-
-# Assign colors and shapes based on specific group numbers
-upregulated_groups <- c("2","4","6","8","10","12")
-downregulated_groups <- c("1","3","5","7","9","11")
-
-# Create the basic UpSet plot (no dynamic colors or shapes) to extract n_points
-dummy_upset <- ComplexUpset::upset(
-  data, 
-  colnames(data),  # Use column names (gene sets)
-  set_sizes = ComplexUpset::upset_set_size(),  # Display set sizes
-  sort_sets = FALSE,
-  
-  # Plot the intersection matrix with points (default shapes)
-  matrix = ComplexUpset::intersection_matrix(
-    ggplot2::geom_point(size = 3)  # Simple points without dynamic aesthetics
-  )
-)
-
-# Ensure n_points matches the actual data
-n_points <- nrow(dummy_upset$data)
-print(paste("Number of points being plotted:", n_points))  # Should be 300
-
-# Create empty vectors for colors and shapes
-color_vector <- rep(NA, n_points)  # To store colors
-shape_vector <- rep(NA, n_points)  # To store shapes
-
-# Assign shapes and colors based on group numbers
-for (i in 1:n_points) {
-  group_value <- as.character(dummy_upset$data$group[i])
-  
-  # Assign shapes
-  if (group_value %in% male_groups) {
-    shape_vector[i] <- 22  # Filled square for Male comparisons
-  } else if (group_value %in% female_groups) {
-    shape_vector[i] <- 21  # Circle for Female comparisons
-  }
-  
-  # Assign colors based on group numbers, only if the point is involved in an intersection
-  if (dummy_upset$data$value[i]) {  # If the point is part of an intersection
-    if (group_value %in% upregulated_groups) {
-      color_vector[i] <- "red"  # Red for Up-regulated
-    } else if (group_value %in% downregulated_groups) {
-      color_vector[i] <- "blue"  # Blue for Down-regulated
-    }
-  } else {
-    color_vector[i] <- NA  # No fill for points not involved in intersections
-  }
-}
-
-# Ensure both vectors are of correct length
-if (length(shape_vector) != n_points || length(color_vector) != n_points) {
-  stop("Error: shape_vector or color_vector length does not match the number of plotted points.")
-}
-
-# Print the color_vector to ensure correctness before plotting
-print(unique(color_vector))  # Ensure this contains only valid colors or NA
-
-# Reintroduce dynamic fill color for filled shapes
-upset_gene <- ComplexUpset::upset(
-  data, 
-  colnames(data),
-  set_sizes = (
-    ComplexUpset::upset_set_size() +
-    geom_text(aes(label = ..count..), hjust = 1.1, stat = 'count') +
-    expand_limits(y = 1000)
-  ),
-  
-  # Prevent automatic sorting of sets
-  sort_sets = FALSE,
-  
-  matrix = ComplexUpset::intersection_matrix(
-    ggplot2::geom_point(
-      ggplot2::aes(shape = factor(shape_vector), fill = color_vector),  # Fill shapes with dynamic colors
-      size = 3,
-      stroke = 0.45  # Keeps the outline black
-    )
-  ) + ggplot2::scale_shape_manual(
-    name = "Sex",
-    labels = c("Male", "Female"),  # Legend labels
-    values = c(21, 22) # Circle=21, Filled square=22
-    ) + ggplot2::scale_fill_identity(na.translate = FALSE),  # Use the exact colors in color_vector and remove NA fill
-  
-    base_annotations = list(
-    'Intersection size' = (
-      intersection_size(bar_number_threshold = 1, width = 0.5) +
-      scale_y_continuous(expand = expansion(mult = c(0, 0.05)), limits = c(0, 800)) +
-      theme(
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        axis.line = element_line(colour = 'black')
-      )
-    )
-  ),
-)
-
-# Add title
-upset_gene <- upset_gene + 
-  ggtitle("Low Dose Comparison, FDRq < 0.10, |LFC| > 0.20")
-
-# Remove legend
-upset_gene <- upset_gene + theme(legend.position = "None")
-
-# Save temp without legend
-pdf(file = paste0(out, model, "/upset/low_dose_comparison_FDRq_0.10_LFC_0.20.pdf"), 
-    height = 7, 
-    width = 12)
-upset_gene
-```
-
-
-```{r}
-# convert the gene sets into a binary matrix (like UpSet plot input)
-upset_data <- UpSetR::fromList(list_input)
-
-# call the function to extract the exclusive intersection genes
-exclusive_intersection_results <- get_exclusive_intersection_genes(upset_data, list_input)
-
-# convert the list to a data.frame with two columns: Total genes and gene list
-exclusive_intersection_df <- do.call(rbind, lapply(names(exclusive_intersection_results), function(x) {
-  data.frame(
-    Intersection = x,
-    Total_Genes = exclusive_intersection_results[[x]]$total_genes,
-    Gene_List = exclusive_intersection_results[[x]]$gene_list,
-    stringsAsFactors = FALSE
-  )
-}))
-exclusive_intersection_df <- 
-  exclusive_intersection_df[order(exclusive_intersection_df$Total_Genes, decreasing = TRUE),]
-
-# save
-write.table(x = exclusive_intersection_df,
-            file = paste0(out, model, "/upset/low_dose_comparison_results.tsv"),
-            sep = "\t",
-            quote = FALSE,
-            col.names = TRUE,
-            row.names = FALSE)
-```
 
 ## High dose
 ```{r}

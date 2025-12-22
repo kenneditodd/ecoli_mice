@@ -38,8 +38,8 @@ library(tidyverse)   # ggplot(), left_join(), column_to_rownames(), pivot_wider(
 load_dot_env(file = "../refs/.env")  # Adjust the path to your .env file
 
 # Output directories and file paths
-out <- "../results/filtered_samples_sex_specific/"
-out2 <- "filtered_samples_sex_specific"
+out <- "../results/both_sexes/"
+out2 <- "both_sexes"
 ann <- Sys.getenv("MMUSCULUS_GTF")
 
 # Read metadata

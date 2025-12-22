@@ -30,8 +30,8 @@ library(tidyverse)  # ggplot(), %>%, pivot_wider()
 ## User defined variables
 ```{r set_variables}
 # Output directories and file paths
-out <- "../results/sex_specific_filtering_but_both_sexes_comparison/"
-out2 <- "filtered_samples_sex_specific"
+out <- "../results/both_sexes/"
+out2 <- "both_sexes"
 model <- "DEGs_with_hbb/"
 
 # Read metadata
@@ -58,9 +58,7 @@ remove(meta)
 
 ## Load data
 ```{r read_DGEList}
-dge.filtered.norm <- readRDS(paste0("../rObjects/",
-                                    out2,
-                                    "_DGEList_filtered_normalized.rds"))
+dge.filtered.norm <- readRDS("../rObjects/DGEList_filtered_normalized.rds")
 dim(dge.filtered.norm)
 head(colnames(dge.filtered.norm))
 ```
@@ -70,7 +68,7 @@ head(colnames(dge.filtered.norm))
 ```{r design_matrix}
 design <- ""
 
-if (out2 == "filtered_samples_sex_specific" && out == "../results/sex_specific_filtering_but_both_sexes_comparison/") {
+if (out2 == "both_sexes") {
   print("both sexes analysis with hbb")
   group <- interaction(dge.filtered.norm$samples$group)
   sex <- factor(dge.filtered.norm$samples$sex)
@@ -78,20 +76,12 @@ if (out2 == "filtered_samples_sex_specific" && out == "../results/sex_specific_f
   design <- model.matrix(~ 0 + group + sex + hbb)
   design.names <- gsub("group","", colnames(design))
   colnames(design) <- design.names
-} else if (grepl("sex_specific", out2) && (model == "DEGs_with_hbb/")) {
+} else if (out2 ==  "sex_specific") {
   print("sex specific analysis with hbb")
   group2 <- interaction(dge.filtered.norm$samples$group2)
   hbb <- as.numeric(dge.filtered.norm$samples$hbb_log2cpm)
   design <- model.matrix(~ 0 + group2 + hbb)
   design.names <- gsub("group2","", colnames(design))
-  colnames(design) <- design.names
-} else if (grepl("both_sexes", out2) && (model == "DEGs_with_hbb/")) {
-  print("both sexes analysis with hbb")
-  group <- interaction(dge.filtered.norm$samples$group)
-  sex <- factor(dge.filtered.norm$samples$sex)
-  hbb <- as.numeric(dge.filtered.norm$samples$hbb_log2cpm)
-  design <- model.matrix(~ 0 + group + sex + hbb)
-  design.names <- gsub("group","", colnames(design))
   colnames(design) <- design.names
 }
 
@@ -102,7 +92,7 @@ head(design)
 ```{r contrasts}
 myContrasts <- ""
 
-if (out2 == "filtered_samples_sex_specific" && out == "../results/sex_specific_filtering_but_both_sexes_comparison/") {
+if (out2 == "both_sexes") {
     myContrasts <- c(
     # E - S comparisons
     "E.2D.Y - S.2D.Y", "E.21D.Y - S.21D.Y",
@@ -115,7 +105,7 @@ if (out2 == "filtered_samples_sex_specific" && out == "../results/sex_specific_f
     # O - Y comparisons
     "E.2D.O - E.2D.Y", "S.2D.O - S.2D.Y",
     "E.21D.O - E.21D.Y", "S.21D.O - S.21D.Y")
-} else if (out2 == "filtered_samples_sex_specific" | out2 == "all_samples_sex_specific") {
+} else if (out2 == "sex_specific") {
   myContrasts <- c(
     # E - S comparisons
     "E.2D.Y.F - S.2D.Y.F", "E.2D.Y.M - S.2D.Y.M",
@@ -141,19 +131,6 @@ if (out2 == "filtered_samples_sex_specific" && out == "../results/sex_specific_f
     "E.21D.Y.F - E.21D.Y.M", "E.21D.O.F - E.21D.O.M",
     "S.21D.Y.F - S.21D.Y.M", "S.21D.O.F - S.21D.O.M"
   )
-} else if (out2 == "filtered_samples_both_sexes" | out2 == "all_samples_both_sexes") {
-  myContrasts <- c(
-    # E - S comparisons
-    "E.2D.Y - S.2D.Y", "E.21D.Y - S.21D.Y",
-    "E.2D.O - S.2D.O", "E.21D.O - S.21D.O",
-  
-    # 21D - 2D comparisons
-    "E.21D.Y - E.2D.Y", "S.21D.Y - S.2D.Y",
-    "E.21D.O - E.2D.O", "S.21D.O - S.2D.O",
-  
-    # O - Y comparisons
-    "E.2D.O - E.2D.Y", "S.2D.O - S.2D.Y",
-    "E.21D.O - E.21D.Y", "S.21D.O - S.21D.Y")
 }
 
 head(myContrasts)
@@ -513,13 +490,12 @@ df <- as.data.frame(sumTable)
 df <- df[!df$direction == "NotSig",]
 rownames(df) <- df$direction
 df$direction <- NULL
-df <- t(df)
 
 # set heatmap colors and names
 meta <- data.frame(comparison = c(rep("E. coli vs Saline", 4),
                                   rep("21 days vs 2 days", 4),
                                   rep("Old vs Young", 4)))
-rownames(meta) <- rownames(df)
+rownames(meta) <- colnames(df)
 paletteLength <- 100
 myColor <- colorRampPalette(c("white","#f0eb9e","darkgreen"))(paletteLength)
 ann_colors = list(comparison = c(`E. coli vs Saline` = "cornflowerblue",
@@ -530,7 +506,7 @@ ann_colors = list(comparison = c(`E. coli vs Saline` = "cornflowerblue",
 path <- paste0(out, model, "/DEG_tables/DEG_comparison_FDRq_",
                format(pval, nsmall = 2),
                "_LFC_", format(my.lfc, nsmall = 2),".pdf")
-pdf(path, width = 8, height = 9)
+pdf(path, width = 10, height = 3)
 
 # plot
 pheatmap::pheatmap(df,
@@ -539,11 +515,12 @@ pheatmap::pheatmap(df,
                    treeheight_col = 0,
                    color = myColor,
                    cluster_rows = FALSE,
-                   annotation_row = meta,
+                   annotation_col = meta,
                    annotation_colors = ann_colors,
                    display_numbers = round(df, digits = 0),
                    fontsize_number = 12,
-                   number_color = "black")
+                   number_color = "black",
+                   angle_col = 90)
 ```
 
 ## DEG heatmap sex specific

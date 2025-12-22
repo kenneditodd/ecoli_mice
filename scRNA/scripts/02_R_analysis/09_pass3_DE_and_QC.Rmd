@@ -215,6 +215,529 @@ for (cmp in comparisons) {
 }
 ```
 
+
+# QC
+## Sex check
+```{r sex_check}
+dot <- DotPlot(mouse.annotated,
+               features = c("Uty","Xist"),
+               group.by = "sample")
+dot
+```
+
+```{r save_sex_check, echo=FALSE, eval=FALSE}
+pdf(paste0(out, "clustering_QC/sex_check_dot_plot.pdf"), width = 6, height = 16)
+dot
+dev.off()
+```
+
+
+## UMAP colored by meta
+```{r split_umaps}
+colors <- c("cyan2","coral","chartreuse2","blue","red","gold","forestgreen",
+            "purple2")
+
+# group
+umap1 <- DimPlot(object = mouse.annotated,
+                 reduction = "umap",
+                 group.by = "group",
+                 raster = FALSE,
+                 shuffle = TRUE,
+                 cols = colors)
+umap1
+
+# group2
+umap2 <- DimPlot(object = mouse.annotated,
+                 reduction = "umap",
+                 group.by = "group2",
+                 raster = FALSE,
+                 shuffle = TRUE)
+umap2
+
+# sex
+umap3 <- DimPlot(object = mouse.annotated,
+                 reduction = "umap",
+                 group.by = "sex",
+                 raster = FALSE,
+                 shuffle = TRUE,
+                 cols = colors)
+umap3
+
+# treatment
+umap4 <- DimPlot(object = mouse.annotated, 
+                 reduction = "umap",
+                 group.by = "treatment",
+                 raster = FALSE,
+                 shuffle = TRUE,
+                 cols = colors)
+umap4
+
+# mito_factor
+umap5 <- DimPlot(object = mouse.annotated, 
+                 group.by = "mito_factor",
+                 reduction = "umap",
+                 raster = FALSE,
+                 shuffle = TRUE,
+                 cols = colors)
+umap5
+
+# phase
+umap6 <- DimPlot(object = mouse.annotated, 
+                 reduction = "umap",
+                 group.by = "phase",
+                 raster = FALSE,
+                 shuffle = TRUE,
+                 cols = colors)
+umap6
+
+# timepoint
+umap7 <- DimPlot(object = mouse.annotated,
+                 reduction = "umap",
+                 group.by = "timepoint_days",
+                 raster = FALSE,
+                 shuffle = TRUE,
+                 cols = colors)
+umap7
+
+# age
+umap8 <- DimPlot(object = mouse.annotated,
+                 reduction = "umap",
+                 group.by = "age",
+                 raster = FALSE,
+                 shuffle = TRUE,
+                 cols = colors)
+umap8
+```
+
+```{r save_split_umap, echo=FALSE, eval=FALSE}
+path <- paste0(out, "clustering_QC/umap_colored_by_")
+pdf(paste0(path, "group.pdf"), width = 6, height = 4)
+umap1
+dev.off()
+
+pdf(paste0(path, "group2.pdf"), width = 6, height = 4)
+umap2
+dev.off()
+
+pdf(paste0(path, "sex.pdf"), width = 6, height = 4)
+umap3
+dev.off()
+
+pdf(paste0(path, "treatment.pdf"), width = 6, height = 4)
+umap4
+dev.off()
+
+pdf(paste0(path, "mito_factor.pdf"), width = 6, height = 4)
+umap5
+dev.off()
+
+pdf(paste0(path, "cell_cycle_phase.pdf"), width = 6, height = 4)
+umap6
+dev.off()
+
+pdf(paste0(path, "timepoint.pdf"), width = 6, height = 4)
+umap7
+dev.off()
+
+pdf(paste0(path, "age.pdf"), width = 6, height = 4)
+umap8
+dev.off()
+
+remove(umap1,umap2,umap3,umap4,umap5,umap6,umap7,umap8)
+```
+
+
+## UMAP split by meta
+```{r split_umaps}
+# group
+umap1 <- DimPlot(object = mouse.annotated,
+                 reduction = "umap",
+                 group.by = "annotated_clusters",
+                 split.by = "group",
+                 raster = FALSE,
+                 ncol = 4,
+                 shuffle = TRUE,
+                 cols = cluster_colors)
+umap1
+```
+
+## Heatmap UMAP
+```{r feature_plots_annotated, warning=FALSE, message=FALSE}
+# UMAP percent_mt
+f1 <- FeaturePlot(mouse.annotated, 
+            reduction = "umap", 
+            features = "percent_mt")  + 
+  scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
+f1
+
+# UMAP nCount
+f2 <- FeaturePlot(mouse.annotated, 
+            reduction = "umap",
+            features = "nCount_RNA") + 
+  scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
+f2
+
+# UMAP nFeature
+f3 <- FeaturePlot(mouse.annotated, 
+            reduction = "umap", 
+            features = "nFeature_RNA") + 
+  scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
+f3
+
+# UMAP percent_ribo
+f4 <- FeaturePlot(mouse.annotated, 
+            reduction = "umap", 
+            features = "percent_ribo") + 
+  scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
+f4
+
+# UMAP cell_complexity
+f5 <- FeaturePlot(mouse.annotated, 
+            reduction = "umap", 
+            features = "cell_complexity") + 
+  scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
+f5
+
+# UMAP percent_hb
+f6 <- FeaturePlot(mouse.annotated, 
+            reduction = "umap", 
+            features = "percent_hb") + 
+  scale_colour_gradientn(colours = c("blue","lightblue","yellow","orange","red"))
+f6
+```
+
+```{r save_umap_heatmap, echo=FALSE, eval=FALSE}
+path <- paste0(out, "clustering_QC/umap_heatmap_")
+pdf(paste0(path, "percent_mito.pdf"), width = 8, height = 6)
+f1
+dev.off()
+
+pdf(paste0(path, "nCount.pdf"), width = 8, height = 6)
+f2
+dev.off()
+
+pdf(paste0(path, "nFeature.pdf"), width = 8, height = 6)
+f3
+dev.off()
+
+pdf(paste0(path, "percent_ribo.pdf"), width = 8, height = 6)
+f4
+dev.off()
+
+pdf(paste0(path, "cell_complexity.pdf"), width = 8, height = 6)
+f5
+dev.off()
+
+pdf(paste0(path, "percent_hb.pdf"), width = 8, height = 6)
+f6
+dev.off()
+
+remove(f1,f2,f3,f4,f5,f6)
+```
+
+## Percent cells per cluster
+```{r percent_cells}
+# timepoint
+b1 <- mouse.annotated@meta.data %>%
+  group_by(annotated_clusters, timepoint_days) %>%
+  dplyr::count() %>%
+  group_by(annotated_clusters) %>%
+  dplyr::mutate(percent = 100*n/sum(n)) %>%
+  ungroup() %>%
+  ggplot(aes(x=annotated_clusters,y=percent, fill=timepoint_days)) +
+  theme_classic() +
+  geom_col() +
+  ggtitle("Percentage of time point per cluster") +
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1))
+b1
+
+# sex
+b2 <- mouse.annotated@meta.data %>%
+  group_by(annotated_clusters, sex) %>%
+  dplyr::count() %>%
+  group_by(annotated_clusters) %>%
+  dplyr::mutate(percent = 100*n/sum(n)) %>%
+  ungroup() %>%
+  ggplot(aes(x=annotated_clusters,y=percent, fill=sex)) +
+  theme_classic() +
+  geom_col() +
+  ggtitle("Percentage of sex per cluster") +
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1))
+b2
+
+# sample
+b3 <- mouse.annotated@meta.data %>%
+  group_by(annotated_clusters, sample) %>%
+  dplyr::count() %>%
+  group_by(annotated_clusters) %>%
+  dplyr::mutate(percent = 100*n/sum(n)) %>%
+  ungroup() %>%
+  ggplot(aes(x=annotated_clusters,y=percent, fill=sample)) +
+  theme_classic() +
+  geom_col() +
+  ggtitle("Percentage of sample per cluster") +
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1))
+b3
+
+# phase
+b4 <- mouse.annotated@meta.data %>%
+  group_by(annotated_clusters, phase) %>%
+  dplyr::count() %>%
+  group_by(annotated_clusters) %>%
+  dplyr::mutate(percent = 100*n/sum(n)) %>%
+  ungroup() %>%
+  ggplot(aes(x=annotated_clusters,y=percent, fill=phase)) +
+  theme_classic() +
+  geom_col() +
+  ggtitle("Percentage of phase per cluster") +
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1))
+b4
+
+# mito.factor
+b5 <- mouse.annotated@meta.data %>%
+  group_by(annotated_clusters, mito_factor) %>%
+  dplyr::count() %>%
+  group_by(annotated_clusters) %>%
+  dplyr::mutate(percent = 100*n/sum(n)) %>%
+  ungroup() %>%
+  ggplot(aes(x=annotated_clusters,y=percent, fill=mito_factor)) +
+  theme_classic() +
+  geom_col() +
+  ggtitle("Percentage of mito factor per cluster") +
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1))
+b5
+
+# group
+b6 <- mouse.annotated@meta.data %>%
+  group_by(annotated_clusters, group) %>%
+  dplyr::count() %>%
+  group_by(annotated_clusters) %>%
+  dplyr::mutate(percent = 100*n/sum(n)) %>%
+  ungroup() %>%
+  ggplot(aes(x=annotated_clusters,y=percent, fill=group)) +
+  theme_classic() +
+  geom_col() +
+  ggtitle("Percentage of group per cluster") +
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1))
+b6
+
+# group2
+b7 <- mouse.annotated@meta.data %>%
+  group_by(annotated_clusters, group2) %>%
+  dplyr::count() %>%
+  group_by(annotated_clusters) %>%
+  dplyr::mutate(percent = 100*n/sum(n)) %>%
+  ungroup() %>%
+  ggplot(aes(x=annotated_clusters,y=percent, fill=group2)) +
+  theme_classic() +
+  geom_col() +
+  ggtitle("Percentage of group2 per cluster") +
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1))
+b7
+
+# age
+b8 <- mouse.annotated@meta.data %>%
+  group_by(annotated_clusters, age) %>%
+  dplyr::count() %>%
+  group_by(annotated_clusters) %>%
+  dplyr::mutate(percent = 100*n/sum(n)) %>%
+  ungroup() %>%
+  ggplot(aes(x=annotated_clusters,y=percent, fill=age)) +
+  theme_classic() +
+  geom_col() +
+  ggtitle("Percentage of age per cluster") +
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1))
+b8
+
+# group / cluster
+mouse.annotated$group <- factor(mouse.annotated$group,
+                                levels = c("S.2D.Y", "E.2D.Y",
+                                           "S.2D.O", "E.2D.O",
+                                           "S.21D.Y", "E.21D.Y",
+                                           "S.21D.O", "E.21D.O"))
+b9 <- mouse.annotated@meta.data %>%
+  group_by(group, annotated_clusters) %>%
+  dplyr::count() %>%
+  group_by(group) %>%
+  dplyr::mutate(percent = 100*n/sum(n)) %>%
+  ungroup() %>%
+  ggplot(aes(x=group,y=percent, fill=annotated_clusters)) +
+  scale_fill_manual(values = cluster_colors) +
+  theme_classic() +
+  geom_col() +
+  ggtitle("Percentage of cell type per group") +
+  theme(axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1))
+b9
+```
+
+```{r save_percent_cells,echo=FALSE,eval=FALSE}
+# save
+path <- paste0(out, "clustering_QC/percent_")
+pdf(paste0(path, "timepoint_per_cluster.pdf"), width = 8, height = 6)
+b1
+dev.off()
+
+# save
+pdf(paste0(path, "sex_per_cluster.pdf"), width = 8, height = 6)
+b2
+dev.off()
+
+# save
+pdf(paste0(path, "sample_per_cluster.pdf"), width = 8, height = 8)
+b3
+dev.off()
+
+# save
+pdf(paste0(path, "phase_per_cluster.pdf"), width = 8, height = 6)
+b4
+dev.off()
+
+# save
+pdf(paste0(path, "mito_factor_per_cluster.pdf"), width = 8, height = 6)
+b5
+dev.off()
+
+# save
+pdf(paste0(path, "group_per_cluster.pdf"), width = 8, height = 6)
+b6
+dev.off()
+
+# save
+pdf(paste0(path, "group2_per_cluster.pdf"), width = 8, height = 6)
+b7
+dev.off()
+
+# save
+pdf(paste0(path, "age_per_cluster.pdf"), width = 8, height = 6)
+b8
+dev.off()
+
+# save
+pdf(paste0(path, "cell_types_per_group.pdf"), width = 8, height = 6)
+b9
+dev.off()
+
+# cleanup
+remove(b1,b2,b3,b4,b5,b6,b7,b8)
+```
+
+## Cells per sample
+```{r cells_per_sample}
+data <- as.data.frame(table(mouse.annotated$sample))
+colnames(data) <- c("sample","frequency")
+
+ncells <- ggplot(data, aes(x = sample, y = frequency, fill = sample)) + 
+  geom_col() +
+  theme_classic() +
+  geom_text(aes(label = frequency), 
+            position=position_dodge(width=0.9), 
+            vjust=-0.25) +
+  scale_y_continuous(breaks = seq(0,8000, by = 2000), limits = c(0,8000)) +
+  ggtitle("Filtered: cells per sample") +
+  theme(legend.position =  "none") + 
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+ncells
+```
+
+```{r save_cells_per_sample, echo=FALSE, eval=FALSE}
+pdf(paste0(out, "clustering_QC/cells_per_sample.pdf"), width = 18, height = 4)
+ncells
+dev.off()
+```
+
+## Cells per cluster
+```{r cells_per_cluster}
+data <- as.data.frame(table(mouse.annotated$annotated_clusters))
+colnames(data) <- c("cluster","frequency")
+
+ncells <- ggplot(data, aes(x = cluster, y = frequency, fill = cluster)) + 
+  geom_col() +
+  theme_classic() +
+  geom_text(aes(label = frequency), 
+            position=position_dodge(width=0.9), 
+            vjust=-0.25) +
+  scale_y_continuous(breaks = seq(0,40000, by = 10000), limits = c(0,40000)) +
+  ggtitle("Cells per Cluster") +
+  scale_fill_manual(values = cluster_colors) +
+  theme(legend.position =  "none") + 
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+ncells
+```
+
+```{r save_cells_per_cluster, echo=FALSE, eval=FALSE}
+pdf(paste0(out, "clustering_QC/cells_per_cluster.pdf"), width = 8, height = 6)
+ncells
+dev.off()
+```
+
+## Cells per cluster per sample
+```{r cells_per_cluster_per_sample}
+# extract data
+data <- data.frame(cluster = mouse.annotated$annotated_clusters,
+                   sample = mouse.annotated$sample)
+data_summary <- data %>%
+  group_by(cluster, sample) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  ungroup()
+
+# Create the stacked bar plot
+ncells <- ggplot(data_summary, aes(x = cluster, y = count, fill = sample)) +
+  geom_bar(stat = "identity") +
+  labs(y = "Frequency", x = "Cluster", fill = "Sample") +
+  theme_minimal() +
+  ggtitle("Frequency of Cells in Each Cluster with Sample Distribution") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust=1)) +
+  ylim(c(0,40000))
+ncells
+
+# reformat for table output
+data_summary <- data_summary %>% pivot_wider(names_from = cluster, values_from = count)
+```
+
+```{r save_cells_per_cluster_per_sample, echo=FALSE, eval=FALSE}
+pdf(paste0(out, "clustering_QC/cells_per_cluster_with_sample_distribution.pdf"),
+    width = 12, height = 6)
+ncells
+dev.off()
+```
+
+## Cells per cluster per group
+```{r cells_per_cluster_per_group}
+# extract data
+data <- data.frame(cluster = mouse.annotated$annotated_clusters,
+                   group = mouse.annotated$group)
+data_summary <- data %>%
+  group_by(cluster, group) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  ungroup()
+
+# Create the stacked bar plot
+ncells <- ggplot(data_summary, aes(x = cluster, y = count, fill = group)) +
+  geom_bar(stat = "identity") +
+  labs(y = "Frequency", x = "Cluster", fill = "Group") +
+  theme_minimal() +
+  ggtitle("Frequency of Cells in Each Cluster with Group Distribution") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust=1)) +
+  ylim(c(0,40000))
+ncells
+
+# reformat for table output
+data_summary <- data_summary %>% pivot_wider(names_from = cluster, values_from = count)
+```
+
+```{r save_cells_per_cluster_per_group, echo=FALSE, eval=FALSE}
+pdf(paste0(out, "clustering_QC/cells_per_cluster_with_group_distribution.pdf"),
+    width = 8, height = 6)
+ncells
+dev.off()
+
+write.table(data_summary, 
+            file = paste0(out, "clustering_QC/cells_per_cluster_with_group_distribution.tsv"), 
+            sep = "\t",quote = FALSE, row.names = FALSE)
+```
+
 # DEG Plots
 ## Sex Specific Comparisons
 ### Female vs Male
@@ -227,8 +750,23 @@ lfc_thresh <- 0
 files <- list.files(paste0(out, "DEGs_pseudobulk/DEG_tables"))
 files <- files[grepl(".+F_vs_.+M_DEGs.tsv", files)]
 
-# init data.frame
-deg.df <- data.frame()
+# get comparisons
+comparisons <- gsub("_DEGs.tsv", "", files)
+all_comparisons <- c(paste0(comparisons, "_up"),
+                     paste0(comparisons, "_down"))
+
+# get cell types
+cell_types <- names(cluster_colors)
+
+# init deg.df
+deg.df <- data.frame(
+  matrix(0, nrow = length(all_comparisons), ncol = length(cell_types)),
+  row.names = all_comparisons
+)
+colnames(deg.df) <- cell_types
+
+# reorder rows
+deg.df <- deg.df[c(16,8,12,4,15,7,11,3,14,6,10,2,13,5,9,1),]
 
 # loop through files
 for (i in files) {
@@ -254,15 +792,15 @@ for (i in files) {
   df <- df %>% 
     dplyr::count(cell_type, direction) %>%
     tidyr::spread(cell_type, n)
+  rownames(df) <- df$direction
+  df$direction <- NULL
   
-  # add to MASTer table
-  deg.df <- smartbind(deg.df, df)
+  # add to master table
+  deg.df[rownames(df), colnames(df)] <- df
 }
 
 # reformat
 deg.df[is.na(deg.df)] <- 0
-rownames(deg.df) <- deg.df$direction
-deg.df$direction <- NULL
 
 # save
 prefix <- paste0(out, "DEGs_pseudobulk/DEG_comparison/",
@@ -277,30 +815,20 @@ write.table(df,
 paletteLength <- 100
 myColor <- colorRampPalette(c("white","#f0eb9e","darkgreen"))(paletteLength)
 
-meta <- data.frame(treatment = c(rep("E.coli", 8),
-                                 rep("Saline", 8)),
-                   age = c("old","old","young","young","old","old","young","young",
-                           "old","old","young","young","old","old","young","young"),
-                   time_point = c(rep("21 days", 4), rep("2 days", 4),
-                                  rep("21 days", 4), rep("2 days", 4)),
-                   direction = c("down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated"))
+meta <- data.frame(treatment = rep(c("Saline", "Saline", "E. coli", "E. coli"), 4),
+                   age = c(rep("Young", 4), rep("Old", 4),
+                           rep("Young", 4), rep("Old", 4)),
+                   time_point = c(rep("2 days", 8), rep("21 days", 8)),
+                   direction = rep(c("Down-regulated","Up-regulated"), 8))
 rownames(meta) <- rownames(deg.df)
 
-ann_colors <- list(treatment = c(`E.coli` = "pink2", Saline = "chocolate4"),
-                   
-                   age = c(young = "gold",
-                           old = "chartreuse2"),
+ann_colors <- list(treatment = c(`E. coli` = "pink2", Saline = "chocolate4"),
+                   age = c(Young = "gold",
+                           Old = "chartreuse2"),
                    time_point = c(`2 days` = "cyan", 
                                   `21 days` = "purple"),
-                   direction = c(`down-regulated` = "#0271f0",
-                                 `up-regulated` = "tomato"))
+                   direction = c(`Down-regulated` = "#0271f0",
+                                 `Up-regulated` = "tomato"))
 
 # save
 pdf(paste0(prefix, ".pdf"), width = 10, height = 10)
@@ -330,8 +858,23 @@ lfc_thresh <- 0
 files <- list.files(paste0(out, "DEGs_pseudobulk/DEG_tables"))
 files <- files[grepl(".+O.+_vs_.+Y.+_DEGs.tsv", files)]
 
-# init data.frame
-deg.df <- data.frame()
+# get comparisons
+comparisons <- gsub("_DEGs.tsv", "", files)
+all_comparisons <- c(paste0(comparisons, "_up"),
+                     paste0(comparisons, "_down"))
+
+# get cell types
+cell_types <- names(cluster_colors)
+
+# init deg.df
+deg.df <- data.frame(
+  matrix(0, nrow = length(all_comparisons), ncol = length(cell_types)),
+  row.names = all_comparisons
+)
+colnames(deg.df) <- cell_types
+
+# reorder rows
+deg.df <- deg.df[c(15,7,11,3,16,8,12,4,13,5,9,1,14,6,10,2),]
 
 # loop through files
 for (i in files) {
@@ -357,15 +900,15 @@ for (i in files) {
   df <- df %>% 
     dplyr::count(cell_type, direction) %>%
     tidyr::spread(cell_type, n)
+  rownames(df) <- df$direction
+  df$direction <- NULL
   
-  # add to MASTer table
-  deg.df <- smartbind(deg.df, df)
+  # add to master table
+  deg.df[rownames(df), colnames(df)] <- df
 }
 
 # reformat
 deg.df[is.na(deg.df)] <- 0
-rownames(deg.df) <- deg.df$direction
-deg.df$direction <- NULL
 
 # save
 prefix <- paste0(out, "DEGs_pseudobulk/DEG_comparison/",
@@ -380,38 +923,27 @@ write.table(df,
 paletteLength <- 100
 myColor <- colorRampPalette(c("white","#f0eb9e","darkgreen"))(paletteLength)
 
-meta <- data.frame(treatment = c(rep("E.coli", 8),
-                                 rep("Saline", 8)),
-                   time_point = c(rep("21 days", 4), rep("2 days", 4),
-                                  rep("21 days", 4), rep("2 days", 4)),
-                   sex = c("female","female","male","male",
-                           "female","female","male","male",
-                           "female","female","male","male",
-                           "female","female","male","male"),
-                   direction = c("down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated"))
+meta <- data.frame(treatment = rep(c("Saline", "Saline", "E. coli", "E. coli"), 4),
+                   sex = c(rep("Female", 4), rep("Male", 4),
+                           rep("Female", 4), rep("Male", 4)),
+                   time_point = c(rep("2 days", 8), rep("21 days", 8)),
+                   direction = rep(c("Down-regulated","Up-regulated"), 8))
 rownames(meta) <- rownames(deg.df)
 
-ann_colors <- list(treatment = c(`E.coli` = "pink", Saline = "chocolate4"),
+ann_colors <- list(treatment = c(`E. coli` = "pink2", Saline = "chocolate4"),
+                   sex = c(Female = "gray",
+                           Male = "orange"),
                    time_point = c(`2 days` = "cyan", 
                                   `21 days` = "purple"),
-                   sex = c(female = "gray",
-                           male = "orange"),
-                   direction = c(`down-regulated` = "#0271f0",
-                                 `up-regulated` = "tomato"))
+                   direction = c(`Down-regulated` = "#0271f0",
+                                 `Up-regulated` = "tomato"))
 
 # save
 pdf(paste0(prefix, ".pdf"), width = 10, height = 10)
 
 # plot
 pheatmap::pheatmap(deg.df,
-                   main = paste0("Old vs. Young, FDRq < ", format(adjpval_thresh, nsmall = 2), 
+                   main = paste0("Old vs Young, FDRq < ", format(adjpval_thresh, nsmall = 2), 
                                  ", |LFC| > ", format(lfc_thresh, nsmall = 2)),
                    treeheight_row = 0,
                    treeheight_col = 0,
@@ -434,8 +966,23 @@ lfc_thresh <- 0
 files <- list.files(paste0(out, "DEGs_pseudobulk/DEG_tables"))
 files <- files[grepl(".+21D.+[MF]_vs_.+2D.+[MF]_DEGs.tsv", files)]
 
-# init data.frame
-deg.df <- data.frame()
+# get comparisons
+comparisons <- gsub("_DEGs.tsv", "", files)
+all_comparisons <- c(paste0(comparisons, "_up"),
+                     paste0(comparisons, "_down"))
+
+# get cell types
+cell_types <- names(cluster_colors)
+
+# init deg.df
+deg.df <- data.frame(
+  matrix(0, nrow = length(all_comparisons), ncol = length(cell_types)),
+  row.names = all_comparisons
+)
+colnames(deg.df) <- cell_types
+
+# reorder rows
+deg.df <- deg.df[c(15,7,11,3,16,8,12,4,13,5,9,1,14,6,10,2),]
 
 # loop through files
 for (i in files) {
@@ -461,15 +1008,15 @@ for (i in files) {
   df <- df %>% 
     dplyr::count(cell_type, direction) %>%
     tidyr::spread(cell_type, n)
+  rownames(df) <- df$direction
+  df$direction <- NULL
   
-  # add to MASTer table
-  deg.df <- smartbind(deg.df, df)
+  # add to master table
+  deg.df[rownames(df), colnames(df)] <- df
 }
 
 # reformat
 deg.df[is.na(deg.df)] <- 0
-rownames(deg.df) <- deg.df$direction
-deg.df$direction <- NULL
 
 # save
 prefix <- paste0(out, "DEGs_pseudobulk/DEG_comparison/",
@@ -484,39 +1031,27 @@ write.table(df,
 paletteLength <- 100
 myColor <- colorRampPalette(c("white","#f0eb9e","darkgreen"))(paletteLength)
 
-meta <- data.frame(treatment = c(rep("E.coli", 8),
-                                 rep("Saline", 8)),
-                   age = c(rep("old",4), rep("young",4),
-                           rep("old",4), rep("young",4)),
-                   sex = c("female","female","male","male",
-                           "female","female","male","male",
-                           "female","female","male","male",
-                           "female","female","male","male"),
-                   direction = c("down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated"))
+meta <- data.frame(treatment = rep(c("Saline", "Saline", "E. coli", "E. coli"), 4),
+                   sex = c(rep("Female", 4), rep("Male", 4),
+                           rep("Female", 4), rep("Male", 4)),
+                   age = c(rep("Young", 8), rep("Old", 8)),
+                   direction = rep(c("Down-regulated","Up-regulated"), 8))
 rownames(meta) <- rownames(deg.df)
 
-ann_colors <- list(treatment = c(`E.coli` = "pink", Saline = "chocolate4"),
-                   age = c(young = "gold",
-                           old = "chartreuse2"),
-                   sex = c(female = "gray",
-                           male = "orange"),
-                   direction = c(`down-regulated` = "#0271f0",
-                                 `up-regulated` = "tomato"))
-
+ann_colors <- list(treatment = c(`E. coli` = "pink2", Saline = "chocolate4"),
+                   sex = c(Female = "gray",
+                           Male = "orange"),
+                   age = c(Young = "gold",
+                           Old = "chartreuse2"),
+                   direction = c(`Down-regulated` = "#0271f0",
+                                 `Up-regulated` = "tomato"))
 
 # save
 pdf(paste0(prefix, ".pdf"), width = 10, height = 10)
 
 # plot
 pheatmap::pheatmap(deg.df,
-                   main = paste0("21 vs 2 days, FDRq < ", format(adjpval_thresh, nsmall = 2), 
+                   main = paste0("21 vs 2 Days, FDRq < ", format(adjpval_thresh, nsmall = 2), 
                                  ", |LFC| > ", format(lfc_thresh, nsmall = 2)),
                    treeheight_row = 0,
                    treeheight_col = 0,
@@ -540,8 +1075,23 @@ lfc_thresh <- 0
 files <- list.files(paste0(out, "DEGs_pseudobulk/DEG_tables"))
 files <- files[grepl("E.+[MF]_vs_S.+[MF]_DEGs.tsv", files)]
 
-# init data.frame
-deg.df <- data.frame()
+# get comparisons
+comparisons <- gsub("_DEGs.tsv", "", files)
+all_comparisons <- c(paste0(comparisons, "_up"),
+                     paste0(comparisons, "_down"))
+
+# get cell types
+cell_types <- names(cluster_colors)
+
+# init deg.df
+deg.df <- data.frame(
+  matrix(0, nrow = length(all_comparisons), ncol = length(cell_types)),
+  row.names = all_comparisons
+)
+colnames(deg.df) <- cell_types
+
+# reorder rows
+deg.df <- deg.df[c(15,7,16,8,13,5,14,6,11,3,12,4,9,1,10,2),]
 
 # loop through files
 for (i in files) {
@@ -567,19 +1117,20 @@ for (i in files) {
   df <- df %>% 
     dplyr::count(cell_type, direction) %>%
     tidyr::spread(cell_type, n)
+  rownames(df) <- df$direction
+  df$direction <- NULL
   
-  # add to MASTer table
-  deg.df <- smartbind(deg.df, df)
+  # add to master table
+  deg.df[rownames(df), colnames(df)] <- df
 }
 
 # reformat
 deg.df[is.na(deg.df)] <- 0
-rownames(deg.df) <- deg.df$direction
-deg.df$direction <- NULL
 
 # save
 prefix <- paste0(out, "DEGs_pseudobulk/DEG_comparison/",
-                 "ecoli_vs_saline_DEG_comparison_FDRq_", format(adjpval_thresh, nsmall = 2),
+                 "ecoli_vs_saline_DEG_sex_specific_comparison_FDRq_", 
+                 format(adjpval_thresh, nsmall = 2),
                  "_LFC_", format(lfc_thresh, nsmall = 2))
 write.table(df, 
             paste0(prefix, ".tsv"),
@@ -589,35 +1140,24 @@ write.table(df,
 paletteLength <- 100
 myColor <- colorRampPalette(c("white","#f0eb9e","darkgreen"))(paletteLength)
 
-meta <- data.frame(age = c(rep("old",4), rep("young",4),
-                           rep("old",4), rep("young",4)),
-                   time_point = c(rep("21 days", 8), rep("2 days", 8)),
-                   sex = c("female","female","male","male",
-                           "female","female","male","male",
-                           "female","female","male","male",
-                           "female","female","male","male"),
-                   direction = c("down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated"))
+meta <- data.frame(time_point =  c(rep("2 days", 8), rep("21 days", 8)),
+                   sex = rep(c("Female","Female","Male","Male"), 4),
+                   age = c(rep("Young", 4), rep("Old", 4),
+                           rep("Young", 4), rep("Old", 4)),
+                   direction = rep(c("Down-regulated","Up-regulated"), 8))
 rownames(meta) <- rownames(deg.df)
 
-ann_colors <- list(age = c(young = "gold",
-                           old = "chartreuse2"),
-                   time_point = c(`2 days` = "cyan", 
+ann_colors <- list(time_point = c(`2 days` = "cyan", 
                                   `21 days` = "purple"),
-                   sex = c(female = "gray",
-                           male = "orange"),
-                   direction = c(`down-regulated` = "#0271f0",
-                                 `up-regulated` = "tomato"))
-
+                   sex = c(Female = "gray",
+                           Male = "orange"),
+                   age = c(Young = "gold",
+                           Old = "chartreuse2"),
+                   direction = c(`Down-regulated` = "#0271f0",
+                                 `Up-regulated` = "tomato"))
 
 # save
-pdf(paste0(prefix, ".pdf"), width = 10, height = 9)
+pdf(paste0(prefix, ".pdf"), width = 10, height = 10)
 
 # plot
 pheatmap::pheatmap(deg.df,
@@ -645,8 +1185,23 @@ lfc_thresh <- 0
 files <- list.files(paste0(out, "DEGs_pseudobulk/DEG_tables"))
 files <- files[grepl(".+O_vs_.+Y_DEGs.tsv", files)]
 
-# init data.frame
-deg.df <- data.frame()
+# get comparisons
+comparisons <- gsub("_DEGs.tsv", "", files)
+all_comparisons <- c(paste0(comparisons, "_up"),
+                     paste0(comparisons, "_down"))
+
+# get cell types
+cell_types <- names(cluster_colors)
+
+# init deg.df
+deg.df <- data.frame(
+  matrix(0, nrow = length(all_comparisons), ncol = length(cell_types)),
+  row.names = all_comparisons
+)
+colnames(deg.df) <- cell_types
+
+# reorder rows
+deg.df <- deg.df[c(8,4,6,2,7,3,5,1),]
 
 # loop through files
 for (i in files) {
@@ -672,19 +1227,20 @@ for (i in files) {
   df <- df %>% 
     dplyr::count(cell_type, direction) %>%
     tidyr::spread(cell_type, n)
+  rownames(df) <- df$direction
+  df$direction <- NULL
   
-  # add to MASTer table
-  deg.df <- smartbind(deg.df, df)
+  # add to master table
+  deg.df[rownames(df), colnames(df)] <- df
 }
 
 # reformat
 deg.df[is.na(deg.df)] <- 0
-rownames(deg.df) <- deg.df$direction
-deg.df$direction <- NULL
 
 # save
 prefix <- paste0(out, "DEGs_pseudobulk/DEG_comparison/",
-                 "old_vs_young_DEG_both_sexes_comparison_FDRq_", format(adjpval_thresh, nsmall = 2),
+                 "old_vs_young_DEG_both_sexes_comparison_FDRq_", 
+                 format(adjpval_thresh, nsmall = 2),
                  "_LFC_", format(lfc_thresh, nsmall = 2))
 write.table(df, 
             paste0(prefix, ".tsv"),
@@ -694,28 +1250,23 @@ write.table(df,
 paletteLength <- 100
 myColor <- colorRampPalette(c("white","#f0eb9e","darkgreen"))(paletteLength)
 
-meta <- data.frame(treatment = c(rep("E.coli", 4),
-                                 rep("Saline", 4)),
-                   time_point = c(rep("21 days", 2), rep("2 days", 2),
-                                  rep("21 days", 2), rep("2 days", 2)),
-                   direction = c("down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated"))
+meta <- data.frame(treatment = rep(c("Saline", "Saline", "E. coli", "E. coli"), 2),
+                   time_point = c(rep("2 days", 4), rep("21 days", 4)),
+                   direction = rep(c("Down-regulated","Up-regulated"), 4))
 rownames(meta) <- rownames(deg.df)
 
-ann_colors <- list(treatment = c(`E.coli` = "pink", Saline = "chocolate4"),
+ann_colors <- list(treatment = c(`E. coli` = "pink2", Saline = "chocolate4"),
                    time_point = c(`2 days` = "cyan", 
                                   `21 days` = "purple"),
-                   direction = c(`down-regulated` = "#0271f0",
-                                 `up-regulated` = "tomato"))
+                   direction = c(`Down-regulated` = "#0271f0",
+                                 `Up-regulated` = "tomato"))
 
 # save
 pdf(paste0(prefix, ".pdf"), width = 10, height = 6)
 
 # plot
 pheatmap::pheatmap(deg.df,
-                   main = paste0("Old vs. Young, FDRq < ", format(adjpval_thresh, nsmall = 2), 
+                   main = paste0("Old vs Young, FDRq < ", format(adjpval_thresh, nsmall = 2), 
                                  ", |LFC| > ", format(lfc_thresh, nsmall = 2)),
                    treeheight_row = 0,
                    treeheight_col = 0,
@@ -738,8 +1289,23 @@ lfc_thresh <- 0
 files <- list.files(paste0(out, "DEGs_pseudobulk/DEG_tables"))
 files <- files[grepl(".+21D.+[OY]_vs_.+2D.+[OY]_DEGs.tsv", files)]
 
-# init data.frame
-deg.df <- data.frame()
+# get comparisons
+comparisons <- gsub("_DEGs.tsv", "", files)
+all_comparisons <- c(paste0(comparisons, "_up"),
+                     paste0(comparisons, "_down"))
+
+# get cell types
+cell_types <- names(cluster_colors)
+
+# init deg.df
+deg.df <- data.frame(
+  matrix(0, nrow = length(all_comparisons), ncol = length(cell_types)),
+  row.names = all_comparisons
+)
+colnames(deg.df) <- cell_types
+
+# reorder rows
+deg.df <- deg.df[c(8,4,6,2,7,3,5,1),]
 
 # loop through files
 for (i in files) {
@@ -765,19 +1331,20 @@ for (i in files) {
   df <- df %>% 
     dplyr::count(cell_type, direction) %>%
     tidyr::spread(cell_type, n)
+  rownames(df) <- df$direction
+  df$direction <- NULL
   
-  # add to MASTer table
-  deg.df <- smartbind(deg.df, df)
+  # add to master table
+  deg.df[rownames(df), colnames(df)] <- df
 }
 
 # reformat
 deg.df[is.na(deg.df)] <- 0
-rownames(deg.df) <- deg.df$direction
-deg.df$direction <- NULL
 
 # save
 prefix <- paste0(out, "DEGs_pseudobulk/DEG_comparison/",
-                 "21_vs_2_days_DEG_both_sexes_comparison_FDRq_", format(adjpval_thresh, nsmall = 2),
+                 "21_vs_2_days_DEG_both_sexes_comparison_FDRq_", 
+                 format(adjpval_thresh, nsmall = 2),
                  "_LFC_", format(lfc_thresh, nsmall = 2))
 write.table(df, 
             paste0(prefix, ".tsv"),
@@ -787,31 +1354,25 @@ write.table(df,
 paletteLength <- 100
 myColor <- colorRampPalette(c("white","#f0eb9e","darkgreen"))(paletteLength)
 
-meta <- data.frame(treatment = c(rep("E.coli", 4),
-                                 rep("Saline", 4)),
-                   age = c(rep("old",2), rep("young",2),
-                           rep("old",2), rep("young",2)),
-                   direction = c("down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "down-regulated","up-regulated"))
+meta <- data.frame(treatment = rep(c("Saline", "Saline", "E. coli", "E. coli"), 2),
+                   age = c(rep("Young", 4), rep("Old", 4)),
+                   direction = rep(c("Down-regulated","Up-regulated"), 4))
 rownames(meta) <- rownames(deg.df)
 
-ann_colors <- list(treatment = c(`E.coli` = "pink", Saline = "chocolate4"),
-                   age = c(young = "gold",
-                           old = "chartreuse2"),
-                   sex = c(female = "gray",
-                           male = "orange"),
-                   direction = c(`down-regulated` = "#0271f0",
-                                 `up-regulated` = "tomato"))
-
+ann_colors <- list(treatment = c(`E. coli` = "pink2", Saline = "chocolate4"),
+                   sex = c(Female = "gray",
+                           Male = "orange"),
+                   age = c(Young = "gold",
+                           Old = "chartreuse2"),
+                   direction = c(`Down-regulated` = "#0271f0",
+                                 `Up-regulated` = "tomato"))
 
 # save
 pdf(paste0(prefix, ".pdf"), width = 10, height = 6)
 
 # plot
 pheatmap::pheatmap(deg.df,
-                   main = paste0("21 vs 2 days, FDRq < ", format(adjpval_thresh, nsmall = 2), 
+                   main = paste0("21 vs 2 Days, FDRq < ", format(adjpval_thresh, nsmall = 2), 
                                  ", |LFC| > ", format(lfc_thresh, nsmall = 2)),
                    treeheight_row = 0,
                    treeheight_col = 0,
@@ -835,8 +1396,23 @@ lfc_thresh <- 0
 files <- list.files(paste0(out, "DEGs_pseudobulk/DEG_tables"))
 files <- files[grepl("E.+[OY]_vs_S.+[OY]_DEGs.tsv", files)]
 
-# init data.frame
-deg.df <- data.frame()
+# get comparisons
+comparisons <- gsub("_DEGs.tsv", "", files)
+all_comparisons <- c(paste0(comparisons, "_up"),
+                     paste0(comparisons, "_down"))
+
+# get cell types
+cell_types <- names(cluster_colors)
+
+# init deg.df
+deg.df <- data.frame(
+  matrix(0, nrow = length(all_comparisons), ncol = length(cell_types)),
+  row.names = all_comparisons
+)
+colnames(deg.df) <- cell_types
+
+# reorder rows
+deg.df <- deg.df[c(8,4,7,3,6,2,5,1),]
 
 # loop through files
 for (i in files) {
@@ -862,15 +1438,15 @@ for (i in files) {
   df <- df %>% 
     dplyr::count(cell_type, direction) %>%
     tidyr::spread(cell_type, n)
+  rownames(df) <- df$direction
+  df$direction <- NULL
   
-  # add to MASTer table
-  deg.df <- smartbind(deg.df, df)
+  # add to master table
+  deg.df[rownames(df), colnames(df)] <- df
 }
 
 # reformat
 deg.df[is.na(deg.df)] <- 0
-rownames(deg.df) <- deg.df$direction
-deg.df$direction <- NULL
 
 # save
 prefix <- paste0(out, "DEGs_pseudobulk/DEG_comparison/",
@@ -885,22 +1461,18 @@ write.table(df,
 paletteLength <- 100
 myColor <- colorRampPalette(c("white","#f0eb9e","darkgreen"))(paletteLength)
 
-meta <- data.frame(age = c(rep("old",2), rep("young",2),
-                           rep("old",1), rep("young",2)),
-                   time_point = c(rep("21 days", 4), rep("2 days", 3)),
-                   direction = c("down-regulated","up-regulated",
-                                 "down-regulated","up-regulated",
-                                 "up-regulated",
-                                 "down-regulated","up-regulated"))
+meta <- data.frame(time_point =  c(rep("2 days", 4), rep("21 days", 4)),
+                   age = c(rep("Young", 2), rep("Old", 2),
+                           rep("Young", 2), rep("Old", 2)),
+                   direction = rep(c("Down-regulated","Up-regulated"), 4))
 rownames(meta) <- rownames(deg.df)
 
-ann_colors <- list(age = c(young = "gold",
-                           old = "chartreuse2"),
-                   time_point = c(`2 days` = "cyan", 
+ann_colors <- list(time_point = c(`2 days` = "cyan", 
                                   `21 days` = "purple"),
-                   direction = c(`down-regulated` = "#0271f0",
-                                 `up-regulated` = "tomato"))
-
+                   age = c(Young = "gold",
+                           Old = "chartreuse2"),
+                   direction = c(`Down-regulated` = "#0271f0",
+                                 `Up-regulated` = "tomato"))
 
 # save
 pdf(paste0(prefix, ".pdf"), width = 10, height = 6)
@@ -1131,427 +1703,38 @@ for (i in 1:length(files)) {
 } # end i for loop
 ```
 
+# Shiny app
+```{r shiny_app, eval=FALSE}
+# create new object
+library(ShinyCell)
+shiny.obj <- mouse.annotated
+VariableFeatures(shiny.obj) <- shiny.obj@assays$SCT@var.features
 
-## Upset plots
-### Function
-```{r upset_function}
-get_exclusive_intersection_genes <- function(upset_data, list_input) {
-  # Initialize a list to store the results
-  results <- list()
-  
-  # Get the names of the columns (gene sets)
-  set_names <- colnames(upset_data)
-  
-  # For each row of the UpSet matrix, extract the exclusive intersection
-  for (i in 1:nrow(upset_data)) {
-    # Check which sets (columns) are "active" (i.e., 1) for the current row
-    active_sets <- set_names[upset_data[i, ] == 1]
-    
-    if (length(active_sets) > 0) {
-      # Find the intersection of genes in the active sets
-      intersected_genes <- Reduce(intersect, list_input[active_sets])
-      
-      # Find genes that are present in any of the other sets (not part of this combination)
-      other_sets <- set_names[upset_data[i, ] == 0]
-      other_genes <- Reduce(union, list_input[other_sets])
-      
-      # Subtract the genes that are in the other sets to make the intersection exclusive
-      exclusive_genes <- setdiff(intersected_genes, other_genes)
-      
-      # Create a label for the current intersection (e.g., "Set1 & Set2")
-      intersection_label <- paste(active_sets, collapse = " & ")
-      
-      # Store the number of genes and the exclusive gene list
-      results[[intersection_label]] <- list(
-        total_genes = length(exclusive_genes),
-        gene_list = paste(exclusive_genes, collapse = ", ")
-      )
-    }
-  }
-  
-  return(results)
-}
-```
+# set default params
+DefaultAssay(shiny.obj) <- "RNA"
 
-### RRP vs HD sex specifc
-```{r E4C_vs_E3C_tables}
-# set thresh
-thresh <- 0.05
+# create config
+colNames <- colnames(shiny.obj@meta.data)
+colNames <- colNames[c(28,29,2:24)]
+sc.config <- createConfig(obj = shiny.obj,
+                          meta.to.include = colNames)
 
-# read tables
-prefix <- paste0(out, "DEGs/DEG_tables/")
-RRP_F_vs_HD_F <- read.table(paste0(prefix,"RRP_F_vs_HD_F_DEGs.tsv"),
-                            sep = "\t",
-                            header = TRUE)
-RRP_M_vs_HD_M <- read.table(paste0(prefix,"RRP_M_vs_HD_M_DEGs.tsv"),
-                            sep = "\t",
-                            header = TRUE)
+# change wd
+setwd(out)
 
-# filter
-RRP_F_vs_HD_F <- RRP_F_vs_HD_F[RRP_F_vs_HD_F$padj < thresh,]
-RRP_M_vs_HD_M <- RRP_M_vs_HD_M[RRP_M_vs_HD_M$padj < thresh,]
-```
+# output shiny app folder
+makeShinyApp(obj = shiny.obj, 
+             scConf = sc.config, 
+             gene.mapping = TRUE,
+             shiny.title = "E. coli Mice scRNAseq")
 
-```{r upset, eval=FALSE}
-# loop through cell types
-clusters <- unique(c(RRP_F_vs_HD_F$cluster, RRP_M_vs_HD_M$cluster))
+# manual config edits
+setwd(out)
+sc1conf <- readRDS("shinyApp/sc1conf.rds")
+cluster_hex <- "#F0E442|#FDB863|#E08214|#B35806|#542788|#998EC3|#0868AC|#2B8CBE|#009E73|#7FCDBB"
+sc1conf[2,4] <- cluster_hex
+saveRDS(sc1conf, "shinyApp/sc1conf.rds")
 
-for (i in clusters) {
-  
-  # skip cluster with not enough DEGs
-  #if (i == "cluster") {
-  #  next
-  #}
-  
-  # Subset df by cluster
-  RRP_F_vs_HD_F_ct <- RRP_F_vs_HD_F[RRP_F_vs_HD_F$cluster == i,]
-  RRP_M_vs_HD_M_ct <- RRP_M_vs_HD_M[RRP_M_vs_HD_M$cluster == i,]
-  
-  # Subset by log2FC
-  RRP_F_vs_HD_F_ct_up <- RRP_F_vs_HD_F_ct[RRP_F_vs_HD_F_ct$log2FoldChange > 0,][,"gene"]
-  RRP_M_vs_HD_M_ct_up <- RRP_M_vs_HD_M_ct[RRP_M_vs_HD_M_ct$log2FoldChange > 0,][,"gene"]
-  RRP_F_vs_HD_F_ct_down <- RRP_F_vs_HD_F_ct[RRP_F_vs_HD_F_ct$log2FoldChange < 0,][,"gene"]
-  RRP_M_vs_HD_M_ct_down <- RRP_M_vs_HD_M_ct[RRP_M_vs_HD_M_ct$log2FoldChange < 0,][,"gene"]
-  axis_max <- max(length(RRP_F_vs_HD_F_ct_up), length(RRP_M_vs_HD_M_ct_up),
-                  length(RRP_F_vs_HD_F_ct_down), length(RRP_M_vs_HD_M_ct_down)) + 300
-  axis_max <- ceiling(axis_max / 100) * 100
- 
-  # format in a list
-  list_input <- list(
-    "E4CM vs E3CM Down-regulated" = RRP_M_vs_HD_M_ct_down,
-    "E4CF vs E3CF Down-regulated" = RRP_F_vs_HD_F_ct_down,
-    "E4CM vs E3CM Up-regulated" = RRP_M_vs_HD_M_ct_up,
-    "E4CF vs E3CF Up-regulated" = RRP_F_vs_HD_F_ct_up
-  )
-  data <- UpSetR::fromList(list_input)
-  
-  # You will specify the male and female groups by their group number
-  # Print this to help assign shapes/colors below
-  group_mapping <- data.frame(
-    Group_Number = 1:4,  # Group numbers (1-8)
-    Gene_Set_Name = sort(colnames(data))  # Sorted gene set names
-  )
-  
-  # Assign shapes based on group numbers
-  male_groups <- c("3","4")  # Male group numbers
-  female_groups <- c("1","2")  # Female group numbers
-  
-  # Assign colors and shapes based on specific group numbers
-  upregulated_groups <- c("2","4")
-  downregulated_groups <- c("1","3")
-  
-  # Create the basic UpSet plot (no dynamic colors or shapes) to extract n_points
-  dummy_upset <- ComplexUpset::upset(
-    data, 
-    colnames(data),  # Use column names (gene sets)
-    set_sizes = ComplexUpset::upset_set_size(),  # Display set sizes
-    sort_sets = FALSE,
-    
-    # Plot the intersection matrix with points (default shapes)
-    matrix = ComplexUpset::intersection_matrix(
-      ggplot2::geom_point(size = 3)  # Simple points without dynamic aesthetics
-    )
-  )
-  
-  # Ensure n_points matches the actual data
-  n_points <- nrow(dummy_upset$data)
-  
-  # Create empty vectors for colors and shapes
-  color_vector <- rep(NA, n_points)  # To store colors
-  shape_vector <- rep(NA, n_points)  # To store shapes
-  
-  # Assign shapes and colors based on group numbers
-  for (j in 1:n_points) {
-    group_value <- as.character(dummy_upset$data$group[j])
-    
-    # Assign shapes
-    if (group_value %in% male_groups) {
-      shape_vector[j] <- 22  # Filled square for Male comparisons
-    } else if (group_value %in% female_groups) {
-      shape_vector[j] <- 21  # Circle for Female comparisons
-    }
-    
-    # Assign colors based on group numbers, only if the point is involved in an intersection
-    if (dummy_upset$data$value[j]) {  # If the point is part of an intersection
-      if (group_value %in% upregulated_groups) {
-        color_vector[j] <- "red"  # Red for Up-regulated
-      } else if (group_value %in% downregulated_groups) {
-        color_vector[j] <- "blue"  # Blue for Down-regulated
-      }
-    } else {
-      color_vector[j] <- NA  # No fill for points not involved in intersections
-    }
-  }
-  
-  # Ensure both vectors are of correct length
-  if (length(shape_vector) != n_points || length(color_vector) != n_points) {
-    stop("Error: shape_vector or color_vector length does not match the number of plotted points.")
-  }
-  
-  # Reintroduce dynamic fill color for filled shapes
-  upset_gene <- ComplexUpset::upset(
-    data, 
-    colnames(data),
-    set_sizes = (
-      ComplexUpset::upset_set_size() +
-      geom_text(aes(label = ..count..), hjust = 1.1, stat = 'count') +
-      expand_limits(y = axis_max)
-    ),
-    
-    # Prevent automatic sorting of sets
-    sort_sets = FALSE,
-    
-    matrix = ComplexUpset::intersection_matrix(
-      ggplot2::geom_point(
-        ggplot2::aes(shape = factor(shape_vector), fill = color_vector),  # Fill shapes with dynamic colors
-        size = 3,
-        stroke = 0.45  # Keeps the outline black
-      )
-    ) + ggplot2::scale_shape_manual(
-      name = "Sex",
-      labels = c("Male", "Female"),  # Legend labels
-      values = c(21, 22) # Circle=21, Filled square=22
-      ) + ggplot2::scale_fill_identity(na.translate = FALSE),  # Use the exact colors in color_vector and remove NA fill
-    
-      base_annotations = list(
-      'Intersection size' = (
-        intersection_size(bar_number_threshold = 1, width = 0.5) +
-        scale_y_continuous(expand = expansion(mult = c(0, 0.05)), limits = c(0, axis_max)) +
-        theme(
-          panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(),
-          axis.line = element_line(colour = 'black')
-        )
-      )
-    ),
-  )
-  
-  # give title
-  upset_gene <- upset_gene + ggtitle(paste0(i,", adj_p_val < 0.05"))
-  
-  # remove legend
-  upset_gene <- upset_gene + theme(legend.position = "None")
-  
-  # save
-  i <- gsub(" ","_",i)
-  pdf(paste0(out, "DEGs/upset/", tolower(i), "_upset.pdf"), height = 6, width = 12)
-  print(upset_gene)
-  dev.off()
-}
-```
-
-# Ambient contamination
-## Heatmap
-```{r}
-goi <- "Kcnip4"
-DefaultAssay(mouse.annotated) <- "RNA"
-
-f1 <- FeaturePlot(mouse.annotated, 
-            reduction = "umap",
-            features = goi) +
-  scale_colour_gradientn(colours = c("blue", "lightblue", "yellow", "orange", "red"))
-f1
-
-f2 <- FeaturePlot(mouse.annotated, 
-            reduction = "umap", 
-            min.cutoff = 2,
-            max.cutoff = 50,
-            features = goi, 
-            slot = "counts") +
-  scale_colour_gradientn(colours = c("blue", "lightblue", "yellow", "orange", "red"))
-f2
-```
-
-## Non-neuronal
-### Subset
-```{r non_neuronal}
-non <- subset(mouse.annotated, merged_clusters != "Neurons")
-table(non$merged_clusters)
-```
-
-### UMAPs
-```{r}
-goi <- "Rbfox3"
-DefaultAssay(non) <- "RNA"
-
-f1 <- FeaturePlot(non, 
-            reduction = "umap",
-            features = goi) +
-  scale_colour_gradientn(colours = c("blue", "lightblue", "yellow", "orange", "red"))
-f1
-
-f2 <- FeaturePlot(non, 
-            reduction = "umap", 
-            features = goi, 
-            slot = "counts") +
-  scale_colour_gradientn(colours = c("blue", "lightblue", "yellow", "orange", "red"))
-f2
-
-non$keep <- non@assays$RNA$counts[goi,] < 1
-f3 <- DimPlot(non, 
-              group.by = "keep",
-              cols = c("blue","gold"),
-              shuffle = TRUE,
-              reduction = "umap")
-f3
-```
-
-```{r}
-goi <- "Rbfox3"
-summary(non@assays$RNA$counts[goi,])
-table(non@assays$RNA$counts[goi,] > 1)
-table(non@assays$RNA$counts[goi,] > 2)
-table(non@assays$RNA$counts[goi,] > 3)
-table(non@assays$RNA$counts[goi,] > 4)
-```
-
-### Barcodes
-```{r}
-# subset noisy clusters
-non$keep <- non@assays$RNA$counts["Rbfox3",] < 1
-noise <- subset(non, keep == FALSE)
-
-# check
-table(noise$keep)
-
-# get barcodes of noisy clusters
-barcodes <- colnames(noise)
-
-# save
-saveRDS(barcodes, 
-        file = paste0("../../rObjects/", filtering_method,
-                      "_pass2_neuronal_cell_barcodes_to_remove.rds"),
-        compress = FALSE)
-```
-
-
-## Neuronal
-### subset
-```{r}
-neuro <- subset(mouse.annotated, merged_clusters == "Neurons")
-table(neuro$merged_clusters)
-```
-
-```{r}
-goi <- "Mbp"
-DefaultAssay(neuro) <- "RNA"
-
-f1 <- FeaturePlot(neuro, 
-            reduction = "umap",
-            features = goi) +
-  scale_colour_gradientn(colours = c("blue", "lightblue", "yellow", "orange", "red"))
-f1
-
-f2 <- FeaturePlot(neuro, 
-            reduction = "umap", 
-            features = goi, 
-            slot = "counts") +
-  scale_colour_gradientn(colours = c("blue", "lightblue", "yellow", "orange", "red"))
-f2
-
-neuro$keep <- neuro@assays$RNA$counts[goi,] < 1
-table(neuro$keep)
-f3 <- DimPlot(neuro, 
-              group.by = "keep",
-              cols = c("blue","gold"),
-              shuffle = TRUE,
-              reduction = "umap")
-f3
-
-neuro$keep <- neuro@assays$RNA$counts[goi,] < 5
-table(neuro$keep)
-f4 <- DimPlot(neuro, 
-              group.by = "keep",
-              cols = c("blue","gold"),
-              shuffle = TRUE,
-              reduction = "umap")
-f4
-```
-
-### Barcodes
-```{r}
-# subset noisy clusters
-neuro$keep <- neuro@assays$RNA$counts["Mbp",] < 5
-noise <- subset(neuro, keep == FALSE)
-
-# check
-table(noise$keep)
-
-# get barcodes of noisy clusters
-barcodes <- colnames(noise)
-length(barcodes)
-
-# save
-saveRDS(barcodes, 
-        file = paste0("../../rObjects/", filtering_method,
-                      "_pass2_mbp_cell_barcodes_to_remove.rds"),
-        compress = FALSE)
-```
-
-# Plotting biases
-```{r heatmap_bias}
-goi <- "Meg3"
-f1 <- FeaturePlot(mouse.annotated, 
-            reduction = "umap", 
-            features = goi, 
-            slot = "data") +
-  scale_colour_gradientn(colours = c("blue", "lightblue", "yellow", "orange", "red"))
-f1
-
-f2 <- FeaturePlot(mouse.annotated, 
-            reduction = "umap", 
-            features = goi, 
-            slot = "counts") +
-  scale_colour_gradientn(colours = c("blue", "lightblue", "yellow", "orange", "red"))
-f2
-
-f3 <- FeaturePlot(mouse.annotated, 
-            reduction = "umap", 
-            features = goi, 
-            slot = "counts", 
-            min.cutoff = 5, 
-            max.cutoff = 100) +  # adjust based on your data
-  scale_colour_gradientn(colours = c("blue", "lightblue", "yellow", "orange", "red"))
-f3
-```
-
-## Dot plot
-```{r}
-canonical_markers <- c(
-  "Aldoc", "Aqp4", "Gja1", "Clu", "Apoe",             # Astrocytes
-  "Col1a1", "Col1a2", "Dcn",                          # Fibroblast
-  "Ptprb", "Cldn5", "Flt1",                           # Endothelial
-  "Aif1", "C1qa", "P2ry12", "Tmem119","Trem2","Mrc1", # Microglia
-  "Syt1", "Snap25", "Rbfox3",                         # Neurons
-  "Pdgfra", "Cspg4", "Olig1", "Olig2", "Tnr",         # OPCs
-  "Mog", "Opalin", "Mal", "Mag", "Mbp",               # Oligodendrocytes
-  "Cfap44", "Spag16","Folr1","Ttr")                   # Ependymal
-
-d1 <- DotPlot(mouse.annotated,
-              features = canonical_markers,
-              cols = "RdYlBu",
-              assay = "RNA") +
-  coord_flip() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
-d1
-
-d2 <- DotPlot(mouse.annotated,
-              features = canonical_markers,
-              cols = "RdYlBu",
-              assay = "RNA",
-              col.min = NA,
-              col.max = NA) +
-  coord_flip() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
-d2
-
-d3 <- DotPlot(mouse.annotated,
-              features = canonical_markers,
-              cols = "RdYlBu",
-              assay = "RNA",
-              slot = "counts",
-              scale = FALSE) +
-  coord_flip() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
-d3
+# cleanup
+remove(sc.config,sc1conf,shiny.obj)
 ```

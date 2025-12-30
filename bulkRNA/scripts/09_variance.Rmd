@@ -2,7 +2,7 @@
 title: "E. coli Mice bulkRNAseq"
 subtitle: "Variance"
 author: "Kennedi Todd"
-date: "02/23/2024"
+date: "12/26/2025"
 output:
   html_document:
     theme: cerulean
@@ -31,13 +31,12 @@ library(variancePartition) # canCorPairs()
 # Output directories and file paths
 out <- "../results/filtered_samples_sex_specific/"
 out2 <- "filtered_samples_sex_specific"
+out <- "../results/"
 ```
 
 ## Load data
 ```{r load_data}
-dge.filtered.norm <- readRDS(paste0("../rObjects/",
-                                    out2, 
-                                    "_DGEList_filtered_normalized.rds"))
+dge.filtered.norm <- readRDS("../rObjects/DGEList_filtered_normalized.rds")
 head(colnames(dge.filtered.norm))
 ```
 
@@ -70,7 +69,6 @@ sapply(meta, class)
 
 # Correlation
 ## Spearman correlation
-- Spearman correlation is generally used to measure the strength and direction of the association between two continuous or ordinal variables
 ```{r spearman_heatmap}
 # save
 path <- paste0(out, "variance/spearman_correlation_heatmap1.pdf")
@@ -185,7 +183,7 @@ form <- ~ (1|treatment) + (1|timepoint_days) + (1|sex) + (1|age)
 
 varPart <- fitExtractVarPartModel(geneExpr, form, meta)
 vp <- sortCols(varPart)
-saveRDS(vp, paste0("../rObjects/", out2, "_var_par.rds"))
+saveRDS(vp, "../rObjects/var_par.rds")
 ```
 
 ## Violins

@@ -56,7 +56,5 @@ scRNA/refs/umap_params.csv
 scRNA/results
 scRNA/rObjects
 scRNA/scripts/*/logs
-scRNA/scripts/*/old
 scRNA/scripts/00*
 scRNA/scripts/*/tune*
-scRNA/*/*/without_integration*

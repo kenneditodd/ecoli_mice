@@ -8,10 +8,10 @@ setwd(".")
 
 # Source thresholds and output paths
 source("../../refs/thresholds_and_outs.R")
-out <- paste0(out, "pass2/")
+out <- paste0(out, "pass3/")
 
 # Load integrated Seurat object
-mouse.merged <- readRDS(paste0("../../rObjects/", filtering_method, "_pass2_harmony_seurat_obj.rds"))
+mouse.merged <- readRDS("../../rObjects/pass3_harmony_seurat_obj.rds")
 
 # Parse SLURM-passed arguments
 args <- commandArgs(trailingOnly = TRUE)

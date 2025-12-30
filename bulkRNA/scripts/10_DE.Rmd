@@ -2,7 +2,7 @@
 title: "E. coli Mice bulkRNAseq"
 subtitle: "Differential Expression"
 author: "Kennedi Todd"
-date: "02/23/2024"
+date: "12/26/2025"
 output:
   html_document:
     theme: cerulean
@@ -30,8 +30,8 @@ library(tidyverse)  # ggplot(), %>%, pivot_wider()
 ## User defined variables
 ```{r set_variables}
 # Output directories and file paths
-out <- "../results/both_sexes/"
-out2 <- "both_sexes"
+out <- "../results/sex_specific_DE/"
+out2 <- "sex_specific"
 model <- "DEGs_with_hbb/"
 
 # Read metadata
@@ -66,8 +66,6 @@ head(colnames(dge.filtered.norm))
 # Voom
 ## Design matrix
 ```{r design_matrix}
-design <- ""
-
 if (out2 == "both_sexes") {
   print("both sexes analysis with hbb")
   group <- interaction(dge.filtered.norm$samples$group)
@@ -474,7 +472,7 @@ sumTable <- sumTable |>
 colnames(sumTable) <- gsub(" - ", "_vs_", colnames(sumTable))
 
 # save table
-path <- paste0(out, model, "DEG_tables/DEG_comparison_FDRq_", 
+path <- paste0(out, "DEG_comparison/DEG_comparison_FDRq_", 
                format(pval, nsmall = 2), "_LFC_", format(my.lfc, nsmall = 2), 
                ".tsv")
 write.table(sumTable, 
@@ -503,7 +501,7 @@ ann_colors = list(comparison = c(`E. coli vs Saline` = "cornflowerblue",
                                  `Old vs Young` = "gold"))
 
 # save
-path <- paste0(out, model, "/DEG_tables/DEG_comparison_FDRq_",
+path <- paste0(out, "/DEG_comparison/DEG_comparison_FDRq_",
                format(pval, nsmall = 2),
                "_LFC_", format(my.lfc, nsmall = 2),".pdf")
 pdf(path, width = 10, height = 3)
@@ -515,6 +513,7 @@ pheatmap::pheatmap(df,
                    treeheight_col = 0,
                    color = myColor,
                    cluster_rows = FALSE,
+                   cluster_cols = FALSE,
                    annotation_col = meta,
                    annotation_colors = ann_colors,
                    display_numbers = round(df, digits = 0),
@@ -546,54 +545,10 @@ ann_colors = list(comparison = c(`E. coli vs Saline` = "cornflowerblue",
                                  `Female vs Male` = "chartreuse2"))
 
 # save
-path <- paste0(out, model, "/DEG_tables/DEG_comparison_FDRq_",
+path <- paste0(out, "/DEG_comparison/DEG_comparison_FDRq_",
                format(pval, nsmall = 2),
                "_LFC_", format(my.lfc, nsmall = 2),".pdf")
 pdf(path, width = 8, height = 12)
-
-# plot
-pheatmap::pheatmap(df,
-                   main = paste0("FDRq < ", pval, ", |LFC| > ", my.lfc),
-                   treeheight_row = 0,
-                   treeheight_col = 0,
-                   color = myColor,
-                   cluster_rows = FALSE,
-                   annotation_row = meta,
-                   annotation_colors = ann_colors,
-                   display_numbers = round(df, digits = 0),
-                   fontsize_number = 12,
-                   number_color = "black")
-```
-
-## DEG heatmap timepoint and sex specific
-```{r}
-# reformat before plotting
-df <- as.data.frame(sumTable)
-df <- df[!df$direction == "NotSig",]
-rownames(df) <- df$direction
-df$direction <- NULL
-df <- t(df)
-
-# set heatmap colors and names
-meta <- data.frame(treatment = c(rep("low dose", 2),
-                                rep("high dose", 2),
-                                rep("other", 3)),
-                   sex = c(rep(c("female","male"),2), rep("both",3)))
-rownames(meta) <- rownames(df)
-paletteLength <- 100
-myColor <- colorRampPalette(c("white","#f0eb9e","darkgreen"))(paletteLength)
-ann_colors = list(treatment = c(`low dose` = "cornflowerblue", 
-                               `high dose` = "firebrick2",
-                               `other` = "gray"),
-                  sex = c(female = 'chartreuse2',
-                          male = 'purple',
-                          both = "gold"))
-
-# save
-path <- paste0(out, model, "/DEG_tables/DEG_comparison_FDRq_",
-               format(pval, nsmall = 2),
-               "_LFC_", format(my.lfc, nsmall = 2),".pdf")
-pdf(path, width = 8, height = 9)
 
 # plot
 pheatmap::pheatmap(df,
@@ -630,7 +585,7 @@ for (i in allComparisons) {
       confint = TRUE
     )
   #output as txt file
-  path <- paste(out, model, "DEG_tables/", title, "_FDRq_1.00_LFC_0.00.tsv", sep = "") 
+  path <- paste(out, "DEG_tables/", title, "_FDRq_1.00_LFC_0.00.tsv", sep = "") 
   write.table(
     vTopTableAll,
     path,
@@ -649,7 +604,7 @@ for (i in allComparisons) {
       lfc = 0,
       confint = TRUE
     )
-  path <- paste(out, model, "DEG_tables/", title, "_FDRq_0.05_LFC_0.00.tsv", sep = "") 
+  path <- paste(out, "DEG_tables/", title, "_FDRq_0.05_LFC_0.00.tsv", sep = "") 
   write.table(
     vTopTable1,
     path,
@@ -668,7 +623,7 @@ for (i in allComparisons) {
       lfc = 0,
       confint = TRUE
     )
-  path <- paste(out, model, "DEG_tables/", title, "_FDRq_0.10_LFC_0.00.tsv", sep = "") 
+  path <- paste(out, "DEG_tables/", title, "_FDRq_0.10_LFC_0.00.tsv", sep = "") 
   write.table(
     vTopTable2,
     path,
@@ -685,14 +640,14 @@ for (i in allComparisons) {
 ## Volcano
 ```{r volcano_plot, message=FALSE, eval=FALSE}
 # set variables
-thresh <- 0.1
+thresh <- 0.05
 my.lfc <- 0
 
 # get file list
-files <- list.files(paste0(out, model,"DEG_tables/"))
+files <- list.files(paste0(out, "DEG_tables/"))
 keep <- grep("_1.00_LFC_0.00.tsv", files)
 files <- files[keep]
-files <- paste0(out, model, "DEG_tables/", files)
+files <- paste0(out, "DEG_tables/", files)
 
 for (i in files) {
   
@@ -718,7 +673,7 @@ for (i in files) {
   data$color_adjpval <- factor(color_values)
   
  # comparison name
- comparison <- gsub(paste0(out, model, "DEG_tables/"), "", i)
+ comparison <- gsub(paste0(out, "DEG_tables/"), "", i)
  comparison <- gsub("_FDRq_1.00_LFC_0.00.tsv","",comparison)
     
  # plot only if there are DEGs with adj.P.Val < thresh
@@ -795,141 +750,11 @@ for (i in files) {
                       size = 5,
                       fontface="italic",
                       max.overlaps = getOption("ggrepel.max.overlaps", default = 30)
-                      ) +
-      ylim(c(0,15))
-     p
-      
-    # save
-    path <- paste0(out, model, "volcano/", comparison, "_FDRq_", 
-                   format(thresh, nsmall = 2), "_LFC_",
-                   format(my.lfc, nsmall = 2), "_volcano.pdf")
-    pdf(path, height = 8, width = 8)
-    print(p)
-    dev.off()
-  }
-} # end loop through variables
-```
-
-## Single volcano
-```{r}
-# set variables
-thresh <- 0.1
-my.lfc <- 0.2
-
-# get file list
-files <- list.files(paste0(out, model,"DEG_tables/"))
-keep <- grep("_1.00_LFC_0.00.tsv", files)
-files <- files[keep]
-files <- paste0(out, model, "DEG_tables/", files)
-files <- files[grepl(pattern = "DEG_tables/S\\.", x = files)]
-files <- paste0(out, model, "DEG_tables/L.8h.M_vs_S.8h.M_FDRq_1.00_LFC_0.00.tsv")
-
-for (i in files) {
-  
-  # read DEG file
-  data <- read.delim(i,sep = "\t")
-  
-  # assign colors
-  color_values <- vector()
-  max <- nrow(data)
-  for(row in 1:max){
-    if (data$adj.P.Val[row] < thresh){
-      if (data$logFC [row] > my.lfc){
-        color_values <- c(color_values, 1) # 1 when logFC > my.lfc and FDRq < thresh
-      } else if (data$logFC[row] < -my.lfc){
-        color_values <- c(color_values, 2) # 2 when logFC < -my.lfc and FDRq < thresh
-      } else {
-        color_values <- c(color_values, 3) # 3 when logFC between -my.lfc and +my.lfc and FDRq < thresh
-      }
-    } else {
-      color_values <- c(color_values, 3) # 3 when FDRq >= thresh
-    }
-  }
-  data$color_adjpval <- factor(color_values)
-  
- # comparison name
- comparison <- gsub(paste0(out, model, "DEG_tables/"), "", i)
- comparison <- gsub("_FDRq_1.00_LFC_0.00.tsv","",comparison)
-    
- # plot only if there are DEGs with adj.P.Val < thresh
- num <- data[data$adj.P.Val < thresh,]
- num <- nrow(num)
- if(num != 0) {
-   
-    # subset genes to label
-    up <- data[data$color_adjpval == 1,]
-    up.sig <- up[order(up$adj.P.Val),][1:15,]
-    up.lfc <- up[order(up$logFC, decreasing = TRUE),][1:15,]
-    up30 <- rbind(up.sig,up.lfc)
-    up30 <- up30[!duplicated(up30$gene_name_unique),]
-    down <- data[data$color_adjpval == 2,]
-    down.sig <- down[order(down$adj.P.Val),][1:15,]
-    down.lfc <- down[order(down$logFC, decreasing = FALSE),][1:15,]
-    down30 <- rbind(down.sig,down.lfc)
-    down30 <- down30[!duplicated(down30$gene_name_unique),]
-      
-    # set manual colors
-    if (!1 %in% unique(data$color_adjpval)) {
-      my_colors <- c("blue","gray")
-    } else if (!2 %in% unique(data$color_adjpval)) {
-      my_colors <- c("red","gray")
-    } else if (!1 %in% unique(data$color_adjpval) && !2 %in% unique(data$color_adjpval)) {
-      my_colors <- c("gray")
-    } else {
-      my_colors <- c("red","blue","gray")
-    }
-      
-    # set significance threshold
-    hadjpval <- (-log10(max(data$adj.P.Val[data$adj.P.Val < thresh], na.rm=TRUE)))
-
-    # plot
-    p <-
-      ggplot(data = data, 
-             aes(x = logFC,  # x-axis is logFC
-                 y = -log10(adj.P.Val),  # y-axis will be -log10 of adj.P.Val
-                 color = color_adjpval)) +  # color is based on factored color column
-      geom_point(alpha = 0.8, size = 2) +  # create scatterplot, alpha makes points transparent
-      theme_bw() +  # set color theme
-      theme(legend.position = "none") +  # no legend
-      scale_color_manual(values = my_colors) +  # set factor colors
-      labs(
-        title = "", # no main title
-        x = expression(log[2](FC)), # x-axis title
-         y = expression(-log[10] ~ "(adjsuted p-value)") # y-axis title
-      ) +
-      theme(axis.title.x = element_text(size = 15),
-            axis.text.x = element_text(size = 15)) +
-      theme(axis.title.y = element_text(size = 15),
-            axis.text.y = element_text(size = 15)) +
-      theme(plot.title = element_text(size = 15)) +
-      geom_hline(yintercept = hadjpval,  #  horizontal line
-                         colour = "#000000",
-                         linetype = "dashed") +
-      geom_vline(xintercept = -my.lfc,  #  vertical line
-                         colour = "#000000",
-                         linetype = "dashed") +
-      geom_vline(xintercept = my.lfc,  #  vertical line
-                         colour = "#000000",
-                         linetype = "dashed") +
-      ggtitle(paste0(comparison, ", adj.P.Val < ", thresh, ", LFC = ", my.lfc)) +
-      geom_text_repel(data = up30,
-                      aes(x = logFC, y= -log10(adj.P.Val), label = gene_name), 
-                      size = 5,
-                      color = "maroon", 
-                      fontface="italic",
-                      max.overlaps = getOption("ggrepel.max.overlaps", default = 30)
-                      ) +
-      geom_text_repel(data = down30,
-                      aes(x = logFC, y= -log10(adj.P.Val), label = gene_name), 
-                      color = "navyblue", 
-                      size = 5,
-                      fontface="italic",
-                      max.overlaps = getOption("ggrepel.max.overlaps", default = 30)
                       )
      p
       
     # save
-    path <- paste0(out, model, "volcano/sex_linked_removed_", comparison, "_FDRq_", 
+    path <- paste0(out, "volcano/", comparison, "_FDRq_", 
                    format(thresh, nsmall = 2), "_LFC_",
                    format(my.lfc, nsmall = 2), "_volcano.pdf")
     pdf(path, height = 8, width = 8)
@@ -942,13 +767,13 @@ for (i in files) {
 ## Metascape input
 ```{r}
 # set variables
-thresh <- 0.1
+thresh <- 0.05
 my.lfc <- 0
 
 # get file list
-files <- list.files(paste0(out, model,"DEG_tables/"))
+files <- list.files(paste0(out, "DEG_tables/"))
 keep <- grep("_1.00_LFC_0.00.tsv", files)
-files <- paste0(out, model, "DEG_tables/", files[keep])
+files <- paste0(out, "DEG_tables/", files[keep])
 
 # intitalize table for command line version of metascape
 msbio.df <- data.frame()
@@ -970,15 +795,15 @@ for (i in 1:length(files)) {
   down <- down$gene_name
   
  # get the comparison name
- comparison <- gsub(paste0(out, model, "DEG_tables/"), "", files[i])
+ comparison <- gsub(paste0(out, "DEG_tables/"), "", files[i])
  comparison <- gsub("_FDRq_1.00_LFC_0.00.tsv","",comparison)
  
  # make two filenames for up and downregulated genes
  # include the comparison, adjusted p-value threshold, and logFC threshold
- up.filename <- paste0(out, model, "metascape_input/", comparison,
+ up.filename <- paste0(out, "metascape_input/", comparison,
                        "_upregulated_FDRq_", format(thresh, nsmall = 2), 
                        "_LFC_", format(my.lfc, nsmall = 2), ".txt")
- down.filename <- paste0(out, model, "metascape_input/", comparison,
+ down.filename <- paste0(out, "metascape_input/", comparison,
                          "_downregulated_FDRq_", format(thresh, nsmall = 2), 
                          "_LFC_", format(my.lfc, nsmall = 2), ".txt")
  
@@ -999,7 +824,7 @@ for (i in 1:length(files)) {
   # if there are more than 10 up-regulated genes, add paths in json format for msbio job
   if (length(up) > 10) {
       msbio <- jsonlite::toJSON(list(
-        input = gsub(paste0(out, model, "metascape_input/"),
+        input = gsub(paste0(out, "metascape_input/"),
                      "/data/metascape_input/",
                      up.filename),
         output = paste0("/data/metascape_output/",
@@ -1015,7 +840,7 @@ for (i in 1:length(files)) {
   # if there are more than 10 down-regulated genes, add paths in json format for msbio job
   if (length(down) > 10) {
       msbio <- jsonlite::toJSON(list(
-        input = gsub(paste0(out, model, "metascape_input/"),
+        input = gsub(paste0(out, "metascape_input/"),
                      "/data/metascape_input/",
                      down.filename),
         output = paste0("/data/metascape_output/",
@@ -1033,8 +858,9 @@ for (i in 1:length(files)) {
 
 # save msbio job
 write.table(x = msbio.df,
-            file = paste0(out, model, "metascape_input/msbio.job"),
+            file = paste0(out, "metascape_input/msbio.job"),
             quote = FALSE,
             row.names = FALSE,
             col.names = FALSE)
 ```
+

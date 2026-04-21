@@ -1,0 +1,148 @@
+---
+title: "E. coli Mice scRNAseq"
+subtitle: "Figures"
+author: "Kennedi Todd"
+date: "02/04/2025"
+output:
+  html_document:
+    code_folding: hide
+    theme: cerulean
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+# Setup
+## Set working directory
+```{r working_directory}
+knitr::opts_knit$set(root.dir = ".")
+```
+
+## Load libraries
+```{r libraries, message=FALSE, warnings=FALSE}
+library(dplyr)          # %>%
+library(ggplot2)        # geom_vline()
+library(gridExtra)      # grid.arrange()
+library(Seurat)         # DimPlot()
+library(tidyr)          # pivot_wider()
+```
+
+## Load data
+```{r}
+mouse_annotated <- readRDS("../../rObjects/pass3_annotated_seurat_obj.rds")
+```
+
+## UMAP
+```{r}
+cluster_colors <- c(
+  "Astrocytes"  = "#F0E442",
+  "Choroid"     = "#FDB863",
+  "Endothelial" = "#E08214",
+  "Fibroblasts" = "#B35806",
+  "Microglia" = "#542788",
+  "BAM" = "#998EC3",
+  "Neurons 1" = "#0868AC",
+  "Neurons 2" = "#2B8CBE",
+  "Oligodendrocytes" = "#009E73",
+  "OPCs" = "#7FCDBB"
+)
+
+DimPlot(mouse_annotated,
+        cols = cluster_colors,
+        shuffle = TRUE)
+```
+
+# Figure 4B
+```{r}
+# read table
+file <- "Fig_4B_microglia_GO.txt"
+df <- read.delim2(paste0("../../refs/figure_input/", file))
+  
+# reformat table
+colnames(df) <- tolower(colnames(df))
+df$gene_count <- sapply(strsplit(df$genes, ","), length)
+df$gene_count <- as.numeric(df$gene_count)
+df$logp <- as.numeric(as.character(df$logp)) * -1
+  
+# Prepare up table
+df_up <- df %>%
+  filter(direction == "up") %>%
+  arrange(gene_count) %>%
+  mutate(pathway = factor(pathway, levels = unique(pathway)))
+
+# save
+pdf(paste0("../../../figures/", gsub(".txt", ".pdf", file)), 
+    width = 8, height = 4)
+
+# plot
+p_up <- ggplot(df_up, aes(y = pathway, x = gene_count, fill = logp)) +
+  geom_col(width = 0.7) +
+  scale_fill_gradient(low = "#FFE5E5", 
+                      high = "#B20000", 
+                      limits = c(min(df_up$logp), max(df_up$logp))) +
+  labs(x = "Gene Count",
+       y = NULL, 
+       fill = "Up-regulated Genes -log10(p)", 
+       title = gsub(".txt", "", file)) +
+  theme_minimal()
+p_up
+
+# cleanup
+remove(file,p_up,df_up,df)
+```
+
+# Figure 4C
+```{r}
+# read table
+file <- "Fig_4C_endothelial_GO.txt"
+df <- read.delim2(paste0("../../refs/figure_input/", file))
+  
+# reformat table
+colnames(df) <- tolower(colnames(df))
+df$gene_count <- sapply(strsplit(df$genes, ","), length)
+df$gene_count <- as.numeric(df$gene_count)
+df$logp <- as.numeric(as.character(df$logp)) * -1
+  
+# Prepare up table
+df_up <- df %>%
+  filter(direction == "up") %>%
+  arrange(gene_count) %>%
+  mutate(pathway = factor(pathway, levels = unique(pathway)))
+
+# save
+pdf(paste0("../../../figures/", gsub(".txt", ".pdf", file)), 
+    width = 8, height = 4)
+
+# plot
+p_up <- ggplot(df_up, aes(y = pathway, x = gene_count, fill = logp)) +
+  geom_col(width = 0.7) +
+  scale_fill_gradient(low = "#FFE5E5", 
+                      high = "#B20000", 
+                      limits = c(min(df_up$logp), max(df_up$logp))) +
+  labs(x = "Gene Count",
+       y = NULL, 
+       fill = "Up-regulated Genes -log10(p)", 
+       title = gsub(".txt", "", file)) +
+  theme_minimal()
+p_up
+
+# cleanup
+remove(file,p_up,df_up,df)
+```
+
+# Endothelial plot options
+## Dot plot
+```{r}
+file <- "endothelial_heatmap.txt"
+df <- read.delim2(paste0("../../refs/figure_input/",file))
+
+DotPlot(mouse_annotated,
+        group.by = "group",
+        split.by = "annotated_clusters",
+        features = df$gene_name)
+```
+
+
+# Microglia heatmap
+

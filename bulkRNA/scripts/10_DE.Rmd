@@ -30,8 +30,8 @@ library(tidyverse)  # ggplot(), %>%, pivot_wider()
 ## User defined variables
 ```{r set_variables}
 # Output directories and file paths
-out <- "../results/sex_specific_DE/"
-out2 <- "sex_specific"
+out <- "../results/both_sexes_DE/"
+out2 <- "both_sexes"
 model <- "DEGs_with_hbb/"
 
 # Read metadata

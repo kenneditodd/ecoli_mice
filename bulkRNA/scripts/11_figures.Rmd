@@ -20,12 +20,17 @@ knitr::opts_knit$set(root.dir = ".")
 
 ## Libraries
 ```{r libraries, message=FALSE, warning=FALSE}
+library(edgeR)
 library(plotly)
 library(tidyr)
 library(ComplexUpset)
 library(UpSetR)
 library(gridExtra)
 library(ggrepel)
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+library(scales)
 ```
 
 ## Functions
@@ -68,9 +73,991 @@ get_exclusive_intersection_genes <- function(upset_data, list_input) {
 }
 ```
 
-# Z-score heatmap
-## 2 days, both sexes, CPM
-### Z-score log2CPM
+
+# Figure 2B
+bulk, 2 day time point, z-score(log2CPM) per sample heatmap
+## Get z-score
+```{r}
+# load data
+dge_obj <- readRDS(
+  "../rObjects/DGEList_filtered_normalized.rds"
+)
+
+# get log CPM
+sample_log2cpm <- cpm(dge_obj, log = TRUE, prior.count = 0.5)
+
+# mean and SD across all samples per gene
+gene_mean <- rowMeans(sample_log2cpm)
+gene_sd   <- apply(sample_log2cpm, 1, sd)
+
+# get mean log CPM per group per gene
+meta <- dge_obj$samples[,c("sample","group","timepoint_days")]
+#group_list <- split(colnames(log_cpm), meta$group)
+#group_means <- sapply(group_list, function(samps) {
+#    rowMeans(log_cpm[, samps, drop = FALSE])
+#})
+
+# z-score
+sample_z <- sweep(sample_log2cpm, 1, gene_mean, "-")
+sample_z <- sweep(sample_z, 1, gene_sd, "/")
+sample_z <- as.data.frame(sample_z)
+
+# cleanup
+remove(dge_obj, sample_means, sample_log2cpm)
+```
+
+## Plot 1
+```{r}
+# subset to groups of samples of interest
+all.equal(meta$sample, colnames(sample_z))
+desired_order <- c("S.2D.Y","E.2D.Y","S.2D.O","E.2D.O")
+keep <- meta$group %in% desired_order
+ord <- order(factor(meta$group[keep], levels = desired_order))
+sample_z <- sample_z[, keep][, ord]
+
+# subset to genes of interest
+file <- "Fig_2B_gene_list_heatmap"
+p_row_meta <- read.delim2(paste0("../refs/figure_input/", file, ".txt"))
+genes <- p_row_meta$gene_name
+sample_z <- sample_z[genes,]
+
+# set heatmap colors
+paletteLength <- 100
+p_color_scale <- colorRampPalette(c("blue", "white", "red"))(paletteLength)
+p_breaks <- c(seq(min(sample_z), 0, length.out = ceiling(paletteLength/2) + 1), 
+              seq(max(sample_z)/paletteLength, max(sample_z), length.out = floor(paletteLength/2)))
+
+# get heatmap row annotation
+rownames(p_row_meta) <- p_row_meta$gene_name
+p_row_meta <- p_row_meta[rownames(sample_z),]
+p_row_meta$gene_name <- NULL
+p_row_meta$log_fc <- NULL
+p_row_meta$adj_pval <- NULL
+p_row_meta$group <- NULL
+
+# get heatmap column annotation
+p_col_meta <- data.frame(row.names = colnames(sample_z),
+                         group = gsub("\\.[MF]\\.[[:digit:]]+", "", colnames(sample_z)))
+p_col_meta$group <- factor(p_col_meta$group, levels = desired_order)
+
+# get heatmap annotation colors
+p_ann_colors <- list(category = c(`immune` = "gold",
+                                  `proliferation` = "gray",
+                                  `vascular` = "coral",
+                                  `neuronal_stress` =  "cyan2"),
+                     group = c(`S.2D.Y` = "#edf8e9",
+                               `E.2D.Y` = "#bae4b3",
+                               `S.2D.O` = "#74c476",
+                               `E.2D.O` = "#238b45"))
+
+# save
+pdf(paste0("../../figures/Fig_2B_E.2D_vs_S.2D_heatmap.pdf"), 
+    width = 5, height = 7)
+pheatmap::pheatmap(sample_z,
+                   main = "Z-scored Log2(CPM)",
+                   cluster_rows = FALSE,
+                   cluster_cols = FALSE,
+                   angle_col = 90,
+                   color = p_color_scale,
+                   breaks = p_breaks,
+                   annotation_row = p_row_meta,
+                   annotation_col = p_col_meta,
+                   annotation_colors = p_ann_colors,
+                   show_colnames = FALSE,
+                   border_color = NA)
+
+# cleanup
+remove(sample_z, p_ann_colors, p_row_meta)
+```
+
+
+## Plot 2
+```{r}
+# subset to groups of samples of interest
+all.equal(meta$sample, colnames(sample_z))
+desired_order <- c("S.21D.Y","E.21D.Y","S.21D.O","E.21D.O")
+keep <- meta$group %in% desired_order
+ord <- order(factor(meta$group[keep], levels = desired_order))
+sample_z <- sample_z[, keep][, ord]
+
+# subset to genes of interest
+file <- "Fig_2B_gene_list_heatmap"
+p_row_meta <- read.delim2(paste0("../refs/figure_input/", file, ".txt"))
+genes <- p_row_meta$gene_name
+sample_z <- sample_z[genes,]
+
+# set heatmap colors
+paletteLength <- 100
+p_color_scale <- colorRampPalette(c("blue", "white", "red"))(paletteLength)
+p_breaks <- c(seq(min(sample_z), 0, length.out = ceiling(paletteLength/2) + 1), 
+              seq(max(sample_z)/paletteLength, max(sample_z), length.out = floor(paletteLength/2)))
+
+# get heatmap row annotation
+rownames(p_row_meta) <- p_row_meta$gene_name
+p_row_meta <- p_row_meta[rownames(sample_z),]
+p_row_meta$gene_name <- NULL
+p_row_meta$log_fc <- NULL
+p_row_meta$adj_pval <- NULL
+p_row_meta$group <- NULL
+
+# get heatmap column annotation
+p_col_meta <- data.frame(row.names = colnames(sample_z),
+                         group = gsub("\\.[MF]\\.[[:digit:]]+", "", colnames(sample_z)))
+p_col_meta$group <- factor(p_col_meta$group, levels = desired_order)
+
+# get heatmap annotation colors
+p_ann_colors <- list(category = c(`immune` = "gold",
+                                  `proliferation` = "gray",
+                                  `vascular` = "coral",
+                                  `neuronal_stress` =  "cyan2"),
+                     group = c(`S.21D.Y` = "#efedf5",
+                               `E.21D.Y` = "#bcbddc",
+                               `S.21D.O` = "#756bb1",
+                               `E.21D.O` = "#54278f"))
+
+# save
+pdf(paste0("../../figures/Fig_2B_E.21D_vs_S.21D_heatmap.pdf"), 
+    width = 5, height = 7)
+pheatmap::pheatmap(sample_z,
+                   main = "Z-scored Log2(CPM)",
+                   cluster_rows = FALSE,
+                   cluster_cols = FALSE,
+                   angle_col = 90,
+                   color = p_color_scale,
+                   breaks = p_breaks,
+                   annotation_row = p_row_meta,
+                   annotation_col = p_col_meta,
+                   annotation_colors = p_ann_colors,
+                   show_colnames = FALSE,
+                   border_color = NA)
+
+# cleanup
+remove(sample_z, p_ann_colors, p_row_meta)
+```
+
+# Figure 2B - potential replacement
+## Get z-score
+```{r}
+# load data
+dge_obj <- readRDS(
+  "../rObjects/DGEList_filtered_normalized.rds"
+)
+
+# get log CPM
+sample_log2cpm <- cpm(dge_obj, log = TRUE, prior.count = 0.5)
+
+# mean and SD across all samples per gene
+gene_mean <- rowMeans(sample_log2cpm)
+gene_sd   <- apply(sample_log2cpm, 1, sd)
+
+# get mean log CPM per group per gene
+meta <- dge_obj$samples[,c("sample","group","timepoint_days")]
+group_list <- split(colnames(sample_log2cpm), meta$group)
+group_means <- sapply(group_list, function(samps) {
+    rowMeans(sample_log2cpm[, samps, drop = FALSE])
+})
+
+# z-score
+group_z <- sweep(group_means, 1, gene_mean, "-")
+group_z <- sweep(group_z, 1, gene_sd, "/")
+group_z <- as.data.frame(group_z)
+
+# cleanup
+remove(dge_obj, group_list, group_means, sample_log2cpm)
+```
+
+## Plot
+```{r}
+# subset to groups of samples of interest
+all.equal(meta$group, colnames(group_z))
+group_z <- group_z[,c(8,4,7,3)]
+
+# subset to genes of interest
+file <- "Fig_2B_gene_list_heatmap.txt"
+p_meta <- read.delim2(paste0("../refs/figure_input/", file))[,c("gene_name",
+                                                                  "category")]
+genes <- p_meta$gene_name
+group_z <- group_z[genes,]
+
+# set heatmap colors
+paletteLength <- 100
+p_color_scale <- colorRampPalette(c("blue", "white", "red"))(paletteLength)
+p_breaks <- c(seq(min(group_z), 0, length.out = ceiling(paletteLength/2) + 1), 
+              seq(max(group_z)/paletteLength, max(group_z), length.out = floor(paletteLength/2)))
+
+# get heatmap annotation
+rownames(p_meta) <- p_meta$gene_name
+p_meta <- p_meta[rownames(group_z),]
+p_meta$gene_name <- NULL
+p_meta$log_fc <- NULL
+p_meta$adj_pval <- NULL
+p_meta$group <- NULL
+p_ann_colors <- list(category = c(`immune` = "gold",
+                                  `proliferation` = "purple3",
+                                  `vascular` = "gray",
+                                  `neuronal_stress` = "chartreuse3"))
+
+# save
+pdf(paste0("../../figures/Fig_2B_alternative.pdf"), 
+    width = 4, height = 6)
+pheatmap::pheatmap(group_z,
+                   main = "Z-scored Log2(CPM)",
+                   cluster_rows = FALSE,
+                   cluster_cols = FALSE,
+                   angle_col = 90,
+                   color = p_color_scale,
+                   breaks = p_breaks,
+                   annotation_row = p_meta,
+                   annotation_colors = p_ann_colors)
+
+# cleanup
+remove(group_z, p_ann_colors, p_meta)
+```
+
+# Figure 2C
+```{r}
+# read table
+file <- "Fig_2C_E.2D.Y_vs_S.2D.Y_bulk_GO_up.txt"
+df <- read.delim2(paste0("../refs/figure_input/", file))
+  
+# reformat table
+colnames(df) <- tolower(colnames(df))
+df$gene_count <- sapply(strsplit(df$genes, ","), length)
+df$gene_count <- as.numeric(df$gene_count)
+df$logp <- as.numeric(as.character(df$logp)) * -1
+  
+# Prepare up table
+df_up <- df %>%
+  filter(direction == "up") %>%
+  arrange(gene_count) %>%
+  mutate(pathway = factor(pathway, levels = unique(pathway)))
+
+# save
+pdf(paste0("../../figures/", gsub(".txt", ".pdf", file)), 
+    width = 8, height = 3)
+
+# plot
+p_up <- ggplot(df_up, aes(y = pathway, x = gene_count, fill = logp)) +
+  geom_col(width = 0.7) +
+  scale_fill_gradient(low = "white", 
+                      high = "#B20000", 
+                      limits = c(0, 20)) +
+  labs(x = "Gene Count",
+       y = NULL, 
+       fill = "Up-regulated Genes -log10(p)", 
+       title = gsub(".txt", "", file)) +
+  theme_minimal()
+p_up
+
+# cleanup
+remove(file,p_up,df_up,df)
+```
+
+# Figure 2D
+```{r}
+# read table
+file <- "Fig_2D_E.2D.O_vs_S.2D.O_bulk_GO_up.txt"
+df <- read.delim2(paste0("../refs/figure_input/", file))
+  
+# reformat table
+colnames(df) <- tolower(colnames(df))
+df$gene_count <- sapply(strsplit(df$genes, ","), length)
+df$gene_count <- as.numeric(df$gene_count)
+df$logp <- as.numeric(as.character(df$logp)) * -1
+  
+# Prepare up table
+df_up <- df %>%
+  filter(direction == "up") %>%
+  arrange(gene_count) %>%
+  mutate(pathway = factor(pathway, levels = unique(pathway)))
+
+# save
+pdf(paste0("../../figures/", gsub(".txt", ".pdf", file)), 
+    width = 8, height = 3)
+
+# plot
+p_up <- ggplot(df_up, aes(y = pathway, x = gene_count, fill = logp)) +
+  geom_col(width = 0.7) +
+  scale_fill_gradient(low = "white", 
+                      high = "#B20000", 
+                      limits = c(0, 20)) +
+  labs(x = "Gene Count",
+       y = NULL, 
+       fill = "Up-regulated Genes -log10(p)", 
+       title = gsub(".txt", "", file)) +
+  theme_minimal()
+p_up
+
+# cleanup
+remove(file,p_up,df_up,df)
+```
+
+# Figure 2F
+```{r}
+# read table
+file <- "Fig_2F_E.2D.O_vs_E.2D.Y_bulk_GO_up.txt"
+df <- read.delim2(paste0("../refs/figure_input/", file))
+  
+# reformat table
+colnames(df) <- tolower(colnames(df))
+df$gene_count <- sapply(strsplit(df$genes, ","), length)
+df$gene_count <- as.numeric(df$gene_count)
+df$logp <- as.numeric(as.character(df$logp)) * -1
+  
+# Prepare up table
+df_up <- df %>%
+  filter(direction == "up") %>%
+  arrange(gene_count) %>%
+  mutate(pathway = factor(pathway, levels = unique(pathway)))
+
+# save
+pdf(paste0("../../figures/", gsub(".txt", ".pdf", file)), 
+    width = 8, height = 4)
+
+# plot
+p_up <- ggplot(df_up, aes(y = pathway, x = gene_count, fill = logp)) +
+  geom_col(width = 0.7) +
+  scale_fill_gradient(low = "white", 
+                      high = "#B20000", 
+                      limits = c(0, 25)) +
+  labs(x = "Gene Count",
+       y = NULL, 
+       fill = "Up-regulated Genes -log10(p)", 
+       title = gsub(".txt", "", file)) +
+  theme_minimal()
+p_up
+
+# cleanup
+remove(file,p_up,df_up,df)
+```
+
+# Figure 2G
+```{r}
+# read table
+file <- "Fig_2G_E.2D.O_vs_E.2D.Y_bulk_GO_down.txt"
+df <- read.delim2(paste0("../refs/figure_input/", file))
+  
+# reformat table
+colnames(df) <- tolower(colnames(df))
+df$gene_count <- sapply(strsplit(df$genes, ","), length)
+df$gene_count <- as.numeric(df$gene_count)
+df$logp <- as.numeric(as.character(df$logp)) * -1
+  
+# Prepare down table
+df_down <- df %>%
+  filter(direction == "down") %>%
+  arrange(gene_count) %>%
+  mutate(pathway = factor(pathway, levels = unique(pathway)))
+
+# save
+pdf(paste0("../../figures/", gsub(".txt", ".pdf", file)), 
+    width = 8, height = 3)
+
+# plot
+p_down <- ggplot(df_down, aes(y = pathway, x = gene_count, fill = logp)) +
+  geom_col(width = 0.7) +
+  scale_fill_gradient(low = "white", 
+                      high = "#004C99", 
+                      n.breaks = 6,
+                      limits = c(0, 70)) +
+  labs(x = "Gene Count",
+       y = NULL, 
+       fill = "Down-regulated Genes -log10(p)", 
+       title = gsub(".txt", "", file)) +
+  theme_minimal()
+p_down
+
+# cleanup
+remove(file,p_down,df_down,df)
+```
+
+# Figure 3B
+```{r}
+# read table
+file <- "Fig_3B_E.21D.Y_vs_S.21D.Y_bulk_GO_up.txt"
+df <- read.delim2(paste0("../refs/figure_input/", file))
+  
+# reformat table
+colnames(df) <- tolower(colnames(df))
+df$gene_count <- sapply(strsplit(df$genes, ","), length)
+df$gene_count <- as.numeric(df$gene_count)
+df$logp <- as.numeric(as.character(df$logp)) * -1
+  
+# Prepare up table
+df_up <- df %>%
+  filter(direction == "up") %>%
+  arrange(gene_count) %>%
+  mutate(pathway = factor(pathway, levels = unique(pathway)))
+
+# save
+pdf(paste0("../../figures/", gsub(".txt", ".pdf", file)), 
+    width = 8, height = 3)
+
+# plot
+p_up <- ggplot(df_up, aes(y = pathway, x = gene_count, fill = logp)) +
+  geom_col(width = 0.7) +
+  scale_fill_gradient(low = "white", 
+                      high = "#B20000",
+                      n.breaks = 4,
+                      limits = c(0, 6)) +
+  labs(x = "Gene Count",
+       y = NULL, 
+       fill = "Up-regulated Genes -log10(p)", 
+       title = gsub(".txt", "", file)) +
+  theme_minimal()
+p_up
+
+# cleanup
+remove(file,p_up,df_up,df)
+```
+
+# Figure 3C
+```{r}
+# read table
+file <- "Fig_3C_E.21D.O_vs_S.21D.O_bulk_GO_up.txt"
+df <- read.delim2(paste0("../refs/figure_input/", file))
+  
+# reformat table
+colnames(df) <- tolower(colnames(df))
+df$gene_count <- sapply(strsplit(df$genes, ","), length)
+df$gene_count <- as.numeric(df$gene_count)
+df$logp <- as.numeric(as.character(df$logp)) * -1
+  
+# Prepare up table
+df_up <- df %>%
+  filter(direction == "up") %>%
+  arrange(gene_count) %>%
+  mutate(pathway = factor(pathway, levels = unique(pathway)))
+
+# save
+pdf(paste0("../../figures/", gsub(".txt", ".pdf", file)), 
+    width = 8, height = 2)
+
+# plot
+p_up <- ggplot(df_up, aes(y = pathway, x = gene_count, fill = logp)) +
+  geom_col(width = 0.7) +
+  scale_fill_gradient(low = "white", 
+                      high = "#B20000",
+                      limits = c(0, 5)) +
+  labs(x = "Gene Count",
+       y = NULL, 
+       fill = "Up-regulated Genes -log10(p)", 
+       title = gsub(".txt", "", file)) +
+  theme_minimal()
+p_up
+
+# cleanup
+remove(file,p_up,df_up,df)
+```
+
+# Figure 3E
+```{r}
+# read table
+file <- "Fig_3E_E.21D.O_vs_E.21D.Y_bulk_GO_up.txt"
+df <- read.delim2(paste0("../refs/figure_input/", file))
+  
+# reformat table
+colnames(df) <- tolower(colnames(df))
+df$gene_count <- sapply(strsplit(df$genes, ","), length)
+df$gene_count <- as.numeric(df$gene_count)
+df$logp <- as.numeric(as.character(df$logp)) * -1
+  
+# Prepare up table
+df_up <- df %>%
+  filter(direction == "up") %>%
+  arrange(gene_count) %>%
+  mutate(pathway = factor(pathway, levels = unique(pathway)))
+
+# save
+pdf(paste0("../../figures/", gsub(".txt", ".pdf", file)), 
+    width = 8, height = 3.5)
+
+# plot
+p_up <- ggplot(df_up, aes(y = pathway, x = gene_count, fill = logp)) +
+  geom_col(width = 0.7) +
+  scale_fill_gradient(low = "white", 
+                      high = "#B20000",
+                      n.breaks = 9,
+                      limits = c(0, 28)) +
+  labs(x = "Gene Count",
+       y = NULL, 
+       fill = "Up-regulated Genes -log10(p)", 
+       title = gsub(".txt", "", file)) +
+  theme_minimal()
+p_up
+
+# cleanup
+remove(file,p_up,df_up,df)
+```
+
+# Figure 3F
+```{r}
+# read table
+file <- "Fig_3F_E.21D.O_vs_E.21D.Y_bulk_GO_down.txt"
+df <- read.delim2(paste0("../refs/figure_input/", file))
+  
+# reformat table
+colnames(df) <- tolower(colnames(df))
+df$gene_count <- sapply(strsplit(df$genes, ","), length)
+df$gene_count <- as.numeric(df$gene_count)
+df$logp <- as.numeric(as.character(df$logp)) * -1
+  
+# Prepare down table
+df_down <- df %>%
+  filter(direction == "down") %>%
+  arrange(gene_count) %>%
+  mutate(pathway = factor(pathway, levels = unique(pathway)))
+
+# save
+pdf(paste0("../../figures/", gsub(".txt", ".pdf", file)), 
+    width = 9, height = 4)
+
+# plot
+p_down <- ggplot(df_down, aes(y = pathway, x = gene_count, fill = logp)) +
+  geom_col(width = 0.7) +
+  scale_fill_gradient(low = "white", 
+                      high = "#004C99", 
+                      n.breaks = 5,
+                      limits = c(0, 25)) +
+  labs(x = "Gene Count",
+       y = NULL, 
+       fill = "Down-regulated Genes -log10(p)", 
+       title = gsub(".txt", "", file)) +
+  theme_minimal()
+p_down
+
+# cleanup
+remove(file,p_down,df_down,df)
+```
+
+# Figure S3B
+```{r}
+# read table
+file <- "Fig_S3B_E.2D.Y.F_vs_S.2D.Y.F_bulk_GO_up.txt"
+df <- read.delim2(paste0("../refs/figure_input/", file))
+  
+# reformat table
+colnames(df) <- tolower(colnames(df))
+df$gene_count <- sapply(strsplit(df$genes, ","), length)
+df$gene_count <- as.numeric(df$gene_count)
+df$logp <- as.numeric(as.character(df$logp)) * -1
+  
+# Prepare up table
+df_up <- df %>%
+  filter(direction == "up") %>%
+  arrange(gene_count) %>%
+  mutate(pathway = factor(pathway, levels = unique(pathway)))
+
+# save
+pdf(paste0("../../figures/", gsub(".txt", ".pdf", file)), 
+    width = 10, height = 3)
+
+# plot
+p_up <- ggplot(df_up, aes(y = pathway, x = gene_count, fill = logp)) +
+  geom_col(width = 0.7) +
+  scale_fill_gradient(low = "white", 
+                      high = "#B20000", 
+                      limits = c(0, 12)) +
+  labs(x = "Gene Count",
+       y = NULL, 
+       fill = "Up-regulated Genes -log10(p)", 
+       title = gsub(".txt", "", file)) +
+  theme_minimal()
+p_up
+
+# cleanup
+remove(file,p_up,df_up,df)
+```
+
+
+# Figure S3C
+```{r}
+# read table
+file <- "Fig_S3C_E.2D.Y.M_vs_S.2D.Y.M_bulk_GO_up.txt"
+df <- read.delim2(paste0("../refs/figure_input/", file))
+  
+# reformat table
+colnames(df) <- tolower(colnames(df))
+df$gene_count <- sapply(strsplit(df$genes, ","), length)
+df$gene_count <- as.numeric(df$gene_count)
+df$logp <- as.numeric(as.character(df$logp)) * -1
+  
+# Prepare up table
+df_up <- df %>%
+  filter(direction == "up") %>%
+  arrange(gene_count) %>%
+  mutate(pathway = factor(pathway, levels = unique(pathway)))
+
+# save
+pdf(paste0("../../figures/", gsub(".txt", ".pdf", file)), 
+    width = 8, height = 3)
+
+# plot
+p_up <- ggplot(df_up, aes(y = pathway, x = gene_count, fill = logp)) +
+  geom_col(width = 0.7) +
+  scale_fill_gradient(low = "white", 
+                      high = "#B20000", 
+                      limits = c(0, 12)) +
+  labs(x = "Gene Count",
+       y = NULL, 
+       fill = "Up-regulated Genes -log10(p)", 
+       title = gsub(".txt", "", file)) +
+  theme_minimal()
+p_up
+
+# cleanup
+remove(file,p_up,df_up,df)
+```
+
+# Figure S3D
+```{r}
+# read table
+file <- "Fig_S3D_E.2D.O.F_vs_S.2D.O.F_bulk_GO_up.txt"
+df <- read.delim2(paste0("../refs/figure_input/", file))
+  
+# reformat table
+colnames(df) <- tolower(colnames(df))
+df$gene_count <- sapply(strsplit(df$genes, ","), length)
+df$gene_count <- as.numeric(df$gene_count)
+df$logp <- as.numeric(as.character(df$logp)) * -1
+  
+# Prepare up table
+df_up <- df %>%
+  filter(direction == "up") %>%
+  arrange(gene_count) %>%
+  mutate(pathway = factor(pathway, levels = unique(pathway)))
+
+# save
+pdf(paste0("../../figures/", gsub(".txt", ".pdf", file)), 
+    width = 8, height = 3)
+
+# plot
+p_up <- ggplot(df_up, aes(y = pathway, x = gene_count, fill = logp)) +
+  geom_col(width = 0.7) +
+  scale_fill_gradient(low = "white", 
+                      high = "#B20000", 
+                      limits = c(0, 20)) +
+  labs(x = "Gene Count",
+       y = NULL, 
+       fill = "Up-regulated Genes -log10(p)", 
+       title = gsub(".txt", "", file)) +
+  theme_minimal()
+p_up
+
+# cleanup
+remove(file,p_up,df_up,df)
+```
+
+# Figure S3E
+```{r}
+# read table
+file <- "Fig_S3E_E.2D.O.M_vs_S.2D.O.M_bulk_GO_up.txt"
+df <- read.delim2(paste0("../refs/figure_input/", file))
+  
+# reformat table
+colnames(df) <- tolower(colnames(df))
+df$gene_count <- sapply(strsplit(df$genes, ","), length)
+df$gene_count <- as.numeric(df$gene_count)
+df$logp <- as.numeric(as.character(df$logp)) * -1
+  
+# Prepare up table
+df_up <- df %>%
+  filter(direction == "up") %>%
+  arrange(gene_count) %>%
+  mutate(pathway = factor(pathway, levels = unique(pathway)))
+
+# save
+pdf(paste0("../../figures/", gsub(".txt", ".pdf", file)), 
+    width = 8, height = 3)
+
+# plot
+p_up <- ggplot(df_up, aes(y = pathway, x = gene_count, fill = logp)) +
+  geom_col(width = 0.7) +
+  scale_fill_gradient(low = "white", 
+                      high = "#B20000", 
+                      limits = c(0, 12)) +
+  labs(x = "Gene Count",
+       y = NULL, 
+       fill = "Up-regulated Genes -log10(p)", 
+       title = gsub(".txt", "", file)) +
+  theme_minimal()
+p_up
+
+# cleanup
+remove(file,p_up,df_up,df)
+```
+
+# Figure S3G
+```{r}
+# read table
+file <- "Fig_S3G_E.2D.Y.F_vs_S.2D.Y.F_bulk_GO_up.txt"
+df <- read.delim2(paste0("../refs/figure_input/", file))
+  
+# reformat table
+colnames(df) <- tolower(colnames(df))
+df$gene_count <- sapply(strsplit(df$genes, ","), length)
+df$gene_count <- as.numeric(df$gene_count)
+df$logp <- as.numeric(as.character(df$logp)) * -1
+  
+# Prepare up table
+df_up <- df %>%
+  filter(direction == "up") %>%
+  arrange(gene_count) %>%
+  mutate(pathway = factor(pathway, levels = unique(pathway)))
+
+# save
+pdf(paste0("../../figures/", gsub(".txt", ".pdf", file)), 
+    width = 8, height = 3)
+
+# plot
+p_up <- ggplot(df_up, aes(y = pathway, x = gene_count, fill = logp)) +
+  geom_col(width = 0.7) +
+  scale_fill_gradient(low = "white", 
+                      high = "#B20000", 
+                      limits = c(0, 18)) +
+  labs(x = "Gene Count",
+       y = NULL, 
+       fill = "Up-regulated Genes -log10(p)", 
+       title = gsub(".txt", "", file)) +
+  theme_minimal()
+p_up
+
+# cleanup
+remove(file,p_up,df_up,df)
+```
+
+
+# Figure - upset, E vs S, 2D, both sexes
+## Plot
+```{r}
+# set variables
+thresh <- 0.05
+myLfc <- 0
+model <- "DEGs_with_hbb/"
+
+# read tables
+E2DY_vs_S2DY <- read.delim(
+  paste0("../results/both_sexes_DE/DEG_tables/E.2D.Y_vs_S.2D.Y_FDRq_1.00_LFC_0.00.tsv"))
+E2DO_vs_S2DO <- read.delim(
+  paste0("../results/both_sexes_DE/DEG_tables/E.2D.O_vs_S.2D.O_FDRq_1.00_LFC_0.00.tsv"))
+rownames(E2DY_vs_S2DY) <- E2DY_vs_S2DY$gene_name_unique
+rownames(E2DO_vs_S2DO) <- E2DO_vs_S2DO$gene_name_unique
+
+# filter on pval
+E2DY_vs_S2DY <- E2DY_vs_S2DY[E2DY_vs_S2DY$adj.P.Val < thresh,]
+E2DO_vs_S2DO <- E2DO_vs_S2DO[E2DO_vs_S2DO$adj.P.Val < thresh,]
+
+# Subset lists
+E2DY_vs_S2DY_up <- subset(E2DY_vs_S2DY$gene_name_unique, E2DY_vs_S2DY$logFC > myLfc)
+E2DY_vs_S2DY_down <- subset(E2DY_vs_S2DY$gene_name_unique, E2DY_vs_S2DY$logFC < -myLfc)
+E2DO_vs_S2DO_up <- subset(E2DO_vs_S2DO$gene_name_unique, E2DO_vs_S2DO$logFC > myLfc)
+E2DO_vs_S2DO_down <- subset(E2DO_vs_S2DO$gene_name_unique, E2DO_vs_S2DO$logFC < -myLfc)
+list_input <- list("E.2D.O vs S.2D.O up-regulated" = E2DO_vs_S2DO_up,
+                   "E.2D.Y vs S.2D.Y up-regulated" = E2DY_vs_S2DY_up,
+                   "E.2D.O vs S.2D.O down-regulated" = E2DO_vs_S2DO_down,
+                   "E.2D.Y vs S.2D.Y down-regulated" = E2DY_vs_S2DY_down)
+data <- fromList(list_input)
+  
+# store names
+names <- colnames(data)
+  
+# plot
+upset_gene <- ComplexUpset::upset(data, 
+				  names,
+				  set_sizes=(
+					upset_set_size()
+					+ geom_text(aes(label=..count..), hjust=1.1, stat='count')
+					+ expand_limits(y=400)),
+				  queries = list(upset_query("E.2D.O vs S.2D.O up-regulated", fill = "red"),
+								 upset_query("E.2D.Y vs S.2D.Y up-regulated", fill = "red"),
+								 upset_query("E.2D.O vs S.2D.O down-regulated", fill = "blue"),
+								 upset_query("E.2D.Y vs S.2D.Y down-regulated", fill = "blue")),
+				  base_annotations = list('Intersection size' = (
+  					intersection_size(bar_number_threshold=1, width=0.5)
+  					+ scale_y_continuous(expand=expansion(mult=c(0, 0.05)),limits = c(0,1000)) # space on top
+  					#+ theme(panel.grid.major = element_blank(),
+            #        panel.grid.minor = element_blank(),
+            #        axis.line = element_line(color = "black"),
+            #        axis.title = element_text())
+					)),
+				  stripes = upset_stripes(
+					geom=geom_segment(size=12),  # make the stripes larger
+					colors=c('grey95', 'white')),
+				  # to prevent connectors from getting the colorured
+				  # use `fill` instead of `color`, together with `shape='circle filled'`
+				  matrix = intersection_matrix(
+					geom=geom_point(
+					  shape='circle filled',
+					  size=3,
+					  stroke=0.45)),
+				  sort_sets=FALSE,
+				  sort_intersections='descending'
+				)
+
+upset_gene <- upset_gene + ggtitle(paste0("E.2D vs S.2D, FDRq < ", format(thresh, nsmall = 2),
+                                          ", |LFC| > ", format(myLfc, nsmall = 2)))
+
+upset_gene <- upset_gene + 
+  theme(
+    axis.title.x = element_text(),
+    axis.title.y = element_text()
+  )
+
+# save
+pdf(paste0("../results/both_sexes_DE/upset/E.2D_vs_S.2D_both_sexes_FDRq_", 
+           format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), "_upset.pdf"), 
+    height = 6, width = 10)
+upset_gene
+```
+
+### Extract
+```{r}
+# convert the gene sets into a binary matrix (like UpSet plot input)
+upset_data <- UpSetR::fromList(list_input)
+
+# call the function to extract the exclusive intersection genes
+exclusive_intersection_results <- get_exclusive_intersection_genes(upset_data, list_input)
+
+# convert the list to a data.frame with two columns: Total genes and gene list
+exclusive_intersection_df <- do.call(rbind, lapply(names(exclusive_intersection_results), function(x) {
+  data.frame(
+    Intersection = x,
+    Total_Genes = exclusive_intersection_results[[x]]$total_genes,
+    Gene_List = exclusive_intersection_results[[x]]$gene_list,
+    stringsAsFactors = FALSE
+  )
+}))
+exclusive_intersection_df <- 
+  exclusive_intersection_df[order(exclusive_intersection_df$Total_Genes, decreasing = TRUE),]
+
+# save
+write.table(x = exclusive_intersection_df,
+            file = paste0("../results/both_sexes/",
+                          model, "upset/E.2D_vs_S.2D_both_sexes_FDRq_", 
+                          format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), 
+                          "_results.tsv"),
+            sep = "\t",
+            quote = FALSE,
+            col.names = TRUE,
+            row.names = FALSE)
+```
+
+## E.coli vs saline, 21 days, both sexes
+### Plot
+```{r}
+# set variables
+thresh <- 0.05
+myLfc <- 0
+model <- "DEGs_with_hbb/"
+
+# read tables
+E21DY_vs_S21DY <- read.delim(
+  paste0("../results/both_sexes/", 
+         model, "DEG_tables/E.21D.Y_vs_S.21D.Y_FDRq_1.00_LFC_0.00.tsv"))
+E21DO_vs_S21DO <- read.delim(
+  paste0("../results/filtered_samples_both_sexes/", 
+         model, "DEG_tables/E.21D.O_vs_S.21D.O_FDRq_1.00_LFC_0.00.tsv"))
+rownames(E21DY_vs_S21DY) <- E21DY_vs_S21DY$gene_name_unique
+rownames(E21DO_vs_S21DO) <- E21DO_vs_S21DO$gene_name_unique
+
+# filter on pval
+E21DY_vs_S21DY <- E21DY_vs_S21DY[E21DY_vs_S21DY$adj.P.Val < thresh,]
+E21DO_vs_S21DO <- E21DO_vs_S21DO[E21DO_vs_S21DO$adj.P.Val < thresh,]
+
+# Subset lists
+E21DY_vs_S21DY_up <- subset(E21DY_vs_S21DY$gene_name_unique, E21DY_vs_S21DY$logFC > myLfc)
+E21DY_vs_S21DY_down <- subset(E21DY_vs_S21DY$gene_name_unique, E21DY_vs_S21DY$logFC < -myLfc)
+E21DO_vs_S21DO_up <- subset(E21DO_vs_S21DO$gene_name_unique, E21DO_vs_S21DO$logFC > myLfc)
+E21DO_vs_S21DO_down <- subset(E21DO_vs_S21DO$gene_name_unique, E21DO_vs_S21DO$logFC < -myLfc)
+list_input <- list("E.21D.O vs S.21D.O up-regulated" = E21DO_vs_S21DO_up,
+                   "E.21D.Y vs S.21D.Y up-regulated" = E21DY_vs_S21DY_up,
+                   "E.21D.O vs S.21D.O down-regulated" = E21DO_vs_S21DO_down,
+                   "E.21D.Y vs S.21D.Y down-regulated" = E21DY_vs_S21DY_down)
+data <- fromList(list_input)
+  
+# store names
+names <- colnames(data)
+  
+# plot
+upset_gene <- ComplexUpset::upset(data, 
+				  names,
+				  set_sizes=(
+					upset_set_size()
+					+ geom_text(aes(label=..count..), hjust=1.1, stat='count')
+					+ expand_limits(y=400)),
+				  queries = list(upset_query("E.21D.O vs S.21D.O up-regulated", fill = "red"),
+								 upset_query("E.21D.Y vs S.21D.Y up-regulated", fill = "red"),
+								 upset_query("E.21D.O vs S.21D.O down-regulated", fill = "blue"),
+								 upset_query("E.21D.Y vs S.21D.Y down-regulated", fill = "blue")),
+				  base_annotations = list('Intersection size' = (
+					intersection_size(bar_number_threshold=1, width=0.5)
+					+ scale_y_continuous(expand=expansion(mult=c(0, 0.05)),limits = c(0,1000)) # space on top
+					+ theme(
+						  # hide grid lines
+						  panel.grid.major=element_blank(),
+						  panel.grid.minor=element_blank(),
+						  # show axis lines
+						  axis.line=element_line(colour='black')))),
+				  stripes = upset_stripes(
+					geom=geom_segment(size=12),  # make the stripes larger
+					colors=c('grey95', 'white')),
+				  # to prevent connectors from getting the colorured
+				  # use `fill` instead of `color`, together with `shape='circle filled'`
+				  matrix = intersection_matrix(
+					geom=geom_point(
+					  shape='circle filled',
+					  size=3,
+					  stroke=0.45)),
+				  sort_sets=FALSE,
+				  sort_intersections='descending'
+				)
+
+upset_gene <- upset_gene + ggtitle(paste0("E.21D vs S.21D, FDRq < ", format(thresh, nsmall = 2),
+                                          ", |LFC| > ", format(myLfc, nsmall = 2)))
+
+# save
+pdf(paste0("../results/both_sexes/",
+           model, "upset/E.21D_vs_S.21D_both_sexes_FDRq_", 
+           format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), "_upset.pdf"), 
+    height = 6, width = 10)
+upset_gene
+```
+
+### Extract
+```{r}
+# convert the gene sets into a binary matrix (like UpSet plot input)
+upset_data <- UpSetR::fromList(list_input)
+
+# call the function to extract the exclusive intersection genes
+exclusive_intersection_results <- get_exclusive_intersection_genes(upset_data, list_input)
+
+# convert the list to a data.frame with two columns: Total genes and gene list
+exclusive_intersection_df <- do.call(rbind, lapply(names(exclusive_intersection_results), function(x) {
+  data.frame(
+    Intersection = x,
+    Total_Genes = exclusive_intersection_results[[x]]$total_genes,
+    Gene_List = exclusive_intersection_results[[x]]$gene_list,
+    stringsAsFactors = FALSE
+  )
+}))
+exclusive_intersection_df <- 
+  exclusive_intersection_df[order(exclusive_intersection_df$Total_Genes, decreasing = TRUE),]
+
+# save
+write.table(x = exclusive_intersection_df,
+            file = paste0("../results/both_sexes/",
+                          model, "upset/E.21D_vs_S.21D_both_sexes_FDRq_", 
+                          format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), 
+                          "_results.tsv"),
+            sep = "\t",
+            quote = FALSE,
+            col.names = TRUE,
+            row.names = FALSE)
+```
+
+
+# Baseline
+## Get z-score
 ```{r}
 # load data
 dge_obj <- readRDS(
@@ -96,25 +1083,18 @@ group_z <- sweep(group_means, 1, gene_mean, "-")
 group_z <- sweep(group_z, 1, gene_sd, "/")
 group_z <- as.data.frame(group_z)
 
-# save table
-write.table(x = group_z,
-            file = "../results/figures/zscore_log2CPM_per_group.tsv",
-            quote = FALSE,
-            sep = "\t",
-            row.names = TRUE,
-            col.names = TRUE)
-
 # cleanup
 remove(dge_obj, group_list, group_means, log_cpm, meta)
 ```
 
-### Plot
+## Plot
 ```{r}
 # subset to groups of interest
-group_z <- group_z[,c("S.2D.Y", "E.2D.Y", "S.2D.O", "E.2D.O")]
+group_z <- group_z[,c("S.2D.Y", "S.21D.Y", "S.2D.O", "S.21D.O")]
 
 # subset to genes of interest
-genes <- readLines("../refs/2D_both_sexes_zscore_log2CPM_heatmap_genes.tsv")
+p_meta <- read.delim2("../refs/figure_input/baseline_gene_list.txt")
+genes <- p_meta$gene_name
 group_z <- group_z[genes,]
 
 # set heatmap colors
@@ -123,28 +1103,100 @@ p_color_scale <- colorRampPalette(c("cornflowerblue", "white", "red"))(paletteLe
 p_breaks <- c(seq(min(group_z), 0, length.out = ceiling(paletteLength/2) + 1), 
               seq(max(group_z)/paletteLength, max(group_z), length.out = floor(paletteLength/2)))
 
-# get heatmap annotation
-p_meta <- read.delim2("../refs/heatmap_gene_categories.tsv")
-rownames(p_meta) <- p_meta$gene_name
-p_meta <- p_meta[rownames(group_z),]
-p_ann_colors <- list(gene_category = c(`immune` = "cornflowerblue",
-                                       `proliferative` = "gold",
-                                       `endothelial` = "chartreuse3",
-                                       `metabolic` = "firebrick2"))
-
 # save
-pdf("../results/figures/2D_both_sexes_zscore_log2CPM_heatmap.pdf", 
+pdf("../../figures/baseline_both_sexes_zscore_log2CPM_heatmap_bulk.pdf", 
     width = 5, height = 6)
-#png(paste0(out, "custom_figures/heatmap1.png"), width = 4000, height = 4800, res = 600)
 pheatmap::pheatmap(group_z,
                    main = "Z-scored Log2(CPM)",
                    cluster_rows = FALSE,
                    cluster_cols = FALSE,
-                   angle_col = 0,
+                   angle_col = 45,
                    color = p_color_scale,
                    breaks = p_breaks)
+
+# cleanup
+remove(group_z, p_ann_colors, p_meta)
 ```
 
+# Figure 1C - saline_old_GO_up
+```{r}
+# read table
+file <- "Fig_1C_saline_old_GO_up.txt"
+df <- read.delim2(paste0("../refs/figure_input/", file))
+  
+# reformat table
+colnames(df) <- tolower(colnames(df))
+df$gene_count <- sapply(strsplit(df$genes, ","), length)
+df$gene_count <- as.numeric(df$gene_count)
+df$logp <- as.numeric(as.character(df$logp)) * -1
+  
+# Prepare up table
+df_up <- df %>%
+  filter(direction == "up") %>%
+  arrange(gene_count) %>%
+  mutate(pathway = factor(pathway, levels = unique(pathway)))
+
+# save
+pdf(paste0("../../figures/", gsub(".txt", ".pdf", file)), 
+    width = 8, height = 4)
+
+# plot
+p_up <- ggplot(df_up, aes(y = pathway, x = gene_count, fill = logp)) +
+  geom_col(width = 0.7) +
+  scale_fill_gradient(low = "#FFE5E5", 
+                      high = "#B20000", 
+                      limits = c(min(df_up$logp), max(df_up$logp))) +
+  labs(x = "Gene Count",
+       y = NULL, 
+       fill = "Up-regulated Genes -log10(p)", 
+       title = gsub(".txt", "", file)) +
+  theme_minimal()
+p_up
+
+# cleanup
+remove(file,p_up,df_up,df)
+```
+
+# Figure 1D
+```{r}
+# read table
+file <- "Fig_1D_saline_old_GO_down.txt"
+df <- read.delim2(paste0("../refs/figure_input/", file))
+  
+# reformat table
+colnames(df) <- tolower(colnames(df))
+df$gene_count <- sapply(strsplit(df$genes, ","), length)
+df$gene_count <- as.numeric(df$gene_count)
+df$logp <- as.numeric(as.character(df$logp)) * -1
+  
+# Prepare down table
+df_down <- df %>%
+  filter(direction == "down") %>%
+  arrange(gene_count) %>%
+  mutate(pathway = factor(pathway, levels = unique(pathway)))
+
+# save
+pdf(paste0("../../figures/", gsub(".txt", ".pdf", file)), 
+    width = 8, height = 4)
+
+# plot
+p_down <- ggplot(df_down, aes(y = pathway, x = gene_count, fill = logp)) +
+  geom_col(width = 0.7) +
+  scale_fill_gradient(low = "#E5F0FF", 
+                      high = "#004C99", 
+                      limits = c(min(df_down$logp), max(df_down$logp))) +
+  labs(x = "Gene Count",
+       y = NULL, 
+       fill = "Down-regulated Genes -log10(p)", 
+       title = gsub(".txt", "", file)) +
+  theme_minimal()
+p_down
+
+# cleanup
+remove(file,p_down,df_down,df)
+```
+
+# Z-score heatmap
 ## 2 days, sex-specific, CPM
 ### Z-score log2CPM
 ```{r}
@@ -154,7 +1206,7 @@ dge_obj <- readRDS(
 )
 
 # get log CPM
-log_cpm <- cpm(dge_obj, log = TRUE, prior.count = 0.5)
+sample_log2cpm <- cpm(dge_obj, log = TRUE, prior.count = 0.5)
 
 # mean and SD across all samples per gene
 gene_mean <- rowMeans(log_cpm)
@@ -207,9 +1259,18 @@ p_color_scale <- colorRampPalette(c("cornflowerblue", "white", "red"))(paletteLe
 p_breaks <- c(seq(min(group2_z), 0, length.out = ceiling(paletteLength/2) + 1), 
               seq(max(group2_z)/paletteLength, max(group2_z), length.out = floor(paletteLength/2)))
 
+# get heatmap annotation
+p_meta <- read.delim2("../refs/heatmap_gene_categories.tsv")
+rownames(p_meta) <- p_meta$gene_name
+p_meta <- p_meta[rownames(group2_z),]
+p_ann_colors <- list(gene_category = c(`immune` = "violet",
+                                       `proliferative` = "gold",
+                                       `endothelial` = "chartreuse3",
+                                       `metabolic` = "gray"))
+
 # save
 pdf("../results/figures/sex_specific_zscore_log2CPM_heatmap.pdf",
-    width = 12, height = 6)
+    width = 8, height = 6)
     
 pheatmap::pheatmap(group2_z,
                    main = "Z-scored Log2(CPM)",
@@ -217,7 +1278,7 @@ pheatmap::pheatmap(group2_z,
                    cluster_cols = FALSE,
                    angle_col = 45,
                    color = p_color_scale,
-                   annotation_row = p_ann_colors,
+                   #annotation_row = p_ann_colors,
                    breaks = p_breaks)
 ```
 
@@ -851,21 +1912,20 @@ write.table(x = exclusive_intersection_df,
 # set variables
 thresh <- 0.05
 myLfc <- 0
-model <- "DEGs_with_hbb/"
 
 # read tables
 E2DY_vs_S2DY <- read.delim(
-  paste0("../results/both_sexes/", 
-         model, "DEG_tables/E.2D.Y_vs_S.2D.Y_FDRq_1.00_LFC_0.00.tsv"))
+  paste0("../results/both_sexes_DE/", 
+         "DEG_tables/E.2D.Y_vs_S.2D.Y_FDRq_1.00_LFC_0.00.tsv"))
 E2DO_vs_S2DO <- read.delim(
-  paste0("../results/filtered_samples_both_sexes/", 
-         model, "DEG_tables/E.2D.O_vs_S.2D.O_FDRq_1.00_LFC_0.00.tsv"))
+  paste0("../results/both_sexes_DE/", 
+         "DEG_tables/E.2D.O_vs_S.2D.O_FDRq_1.00_LFC_0.00.tsv"))
 E21DY_vs_S21DY <- read.delim(
-  paste0("../results/both_sexes/", 
-         model, "DEG_tables/E.21D.Y_vs_S.21D.Y_FDRq_1.00_LFC_0.00.tsv"))
+  paste0("../results/both_sexes_DE/", 
+         "DEG_tables/E.21D.Y_vs_S.21D.Y_FDRq_1.00_LFC_0.00.tsv"))
 E21DO_vs_S21DO <- read.delim(
-  paste0("../results/filtered_samples_both_sexes/", 
-         model, "DEG_tables/E.21D.O_vs_S.21D.O_FDRq_1.00_LFC_0.00.tsv"))
+  paste0("../results/both_sexes_DE/", 
+         "DEG_tables/E.21D.O_vs_S.21D.O_FDRq_1.00_LFC_0.00.tsv"))
 
 rownames(E2DY_vs_S2DY) <- E2DY_vs_S2DY$gene_name_unique
 rownames(E2DO_vs_S2DO) <- E2DO_vs_S2DO$gene_name_unique
@@ -887,14 +1947,14 @@ E21DY_vs_S21DY_up <- subset(E21DY_vs_S21DY$gene_name_unique, E21DY_vs_S21DY$logF
 E21DY_vs_S21DY_down <- subset(E21DY_vs_S21DY$gene_name_unique, E21DY_vs_S21DY$logFC < -myLfc)
 E21DO_vs_S21DO_up <- subset(E21DO_vs_S21DO$gene_name_unique, E21DO_vs_S21DO$logFC > myLfc)
 E21DO_vs_S21DO_down <- subset(E21DO_vs_S21DO$gene_name_unique, E21DO_vs_S21DO$logFC < -myLfc)
-list_input <- list("E.21D.O vs S.21D.O up-regulated" = E21DO_vs_S21DO_up,
-                   "E.21D.Y vs S.21D.Y up-regulated" = E21DY_vs_S21DY_up,
-                   "E.21D.O vs S.21D.O down-regulated" = E21DO_vs_S21DO_down,
-                   "E.21D.Y vs S.21D.Y down-regulated" = E21DY_vs_S21DY_down,
-                   "E.2D.O vs S.2D.O up-regulated" = E2DO_vs_S2DO_up,
-                   "E.2D.Y vs S.2D.Y up-regulated" = E2DY_vs_S2DY_up,
-                   "E.2D.O vs S.2D.O down-regulated" = E2DO_vs_S2DO_down,
-                   "E.2D.Y vs S.2D.Y down-regulated" = E2DY_vs_S2DY_down)
+list_input <- list("E coli old 21D up-regulated" = E21DO_vs_S21DO_up,
+                   "E coli young 21D up-regulated" = E21DY_vs_S21DY_up,
+                   "E coli old 21D down-regulated" = E21DO_vs_S21DO_down,
+                   "E coli young 21D down-regulated" = E21DY_vs_S21DY_down,
+                   "E coli old 2D up-regulated" = E2DO_vs_S2DO_up,
+                   "E coli young 2D up-regulated" = E2DY_vs_S2DY_up,
+                   "E coli old 2D down-regulated" = E2DO_vs_S2DO_down,
+                   "E coli young 2D down-regulated" = E2DY_vs_S2DY_down)
 data <- fromList(list_input)
   
 # store names
@@ -907,14 +1967,14 @@ upset_gene <- ComplexUpset::upset(data,
 					upset_set_size()
 					+ geom_text(aes(label=..count..), hjust=1.1, stat='count')
 					+ expand_limits(y=400)),
-				  queries = list(upset_query("E.21D.O vs S.21D.O up-regulated", fill = "red"),
-								 upset_query("E.21D.Y vs S.21D.Y up-regulated", fill = "red"),
-								 upset_query("E.21D.O vs S.21D.O down-regulated", fill = "blue"),
-								 upset_query("E.21D.Y vs S.21D.Y down-regulated", fill = "blue"),
-								 upset_query("E.2D.O vs S.2D.O up-regulated", fill = "red"),
-								 upset_query("E.2D.Y vs S.2D.Y up-regulated", fill = "red"),
-								 upset_query("E.2D.O vs S.2D.O down-regulated", fill = "blue"),
-								 upset_query("E.2D.Y vs S.2D.Y down-regulated", fill = "blue")),
+				  queries = list(upset_query("E coli old 21D up-regulated", fill = "red"),
+								 upset_query("E coli young 21D up-regulated", fill = "red"),
+								 upset_query("E coli old 21D down-regulated", fill = "blue"),
+								 upset_query("E coli young 21D down-regulated", fill = "blue"),
+								 upset_query("E coli old 2D up-regulated", fill = "red"),
+								 upset_query("E coli young 2D up-regulated", fill = "red"),
+								 upset_query("E coli old 2D down-regulated", fill = "blue"),
+								 upset_query("E coli young 2D down-regulated", fill = "blue")),
 				  base_annotations = list('Intersection size' = (
 					intersection_size(bar_number_threshold=1, width=0.5)
 					+ scale_y_continuous(expand=expansion(mult=c(0, 0.05)),limits = c(0,250)) # space on top
@@ -942,8 +2002,7 @@ upset_gene <- upset_gene + ggtitle(paste0("E. coli vs Saline, FDRq < ", format(t
                                           ", |LFC| > ", format(myLfc, nsmall = 2)))
 
 # save
-pdf(paste0("../results/both_sexes/",
-           model, "upset/E_vs_S_both_sexes_FDRq_", 
+pdf(paste0("../results/both_sexes_DE/upset/E_vs_S_both_sexes_FDRq_", 
            format(thresh, nsmall = 2), "_LFC_", format(myLfc, nsmall = 2), "_upset.pdf"), 
     height = 6, width = 10)
 upset_gene

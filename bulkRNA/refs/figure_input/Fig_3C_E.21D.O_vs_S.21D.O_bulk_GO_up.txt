@@ -1,0 +1,3 @@
+pathway	logP10	genes	direction
+neurexins and neuroligins	-4.998868441	DLG2,DLGAP1,LRRTM4,SYN3,KCNQ5,SST	up
+neuron migration	-3.657658123	AUTS2,KIRREL3,FAT3,DLG2	up

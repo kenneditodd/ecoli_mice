@@ -1,0 +1,212 @@
+---
+title: "E. coli Mice bulkRNAseq"
+subtitle: "Variance"
+author: "Kennedi Todd"
+date: "12/26/2025"
+output:
+  html_document:
+    theme: cerulean
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+# Setup
+## Working directory
+```{r working_directory}
+knitr::opts_knit$set(root.dir = ".")
+```
+
+## Libraries
+```{r libraries}
+library(corrplot)          # corrplot()
+library(dplyr)             # %>%
+library(ggcorrplot)        # ggcorrplot()
+library(variancePartition) # canCorPairs()
+```
+
+## User defined variables
+```{r set_variables}
+# Output directories and file paths
+out <- "../results/filtered_samples_sex_specific/"
+out2 <- "filtered_samples_sex_specific"
+out <- "../results/"
+```
+
+## Load data
+```{r load_data}
+dge.filtered.norm <- readRDS("../rObjects/DGEList_filtered_normalized.rds")
+head(colnames(dge.filtered.norm))
+```
+
+# Extract metadata
+```{r extract_meta}
+# get meta
+meta <- as.data.frame(dge.filtered.norm$samples)
+
+# select variables of interest
+variables <- c("group",
+               "group2",
+               "treatment",
+               "timepoint_days",
+               "age",
+               "lib.size",
+               "sex",
+               "hbb_log2cpm")
+meta <- meta %>% select(all_of(variables))
+
+# log2 transform lib.size
+meta$log2.lib <- log2(meta$lib.size)
+meta$lib.size <- NULL
+
+# change class
+meta$group2 <- factor(meta$group2)
+
+# check classes
+sapply(meta, class)
+```
+
+# Correlation
+## Spearman correlation
+```{r spearman_heatmap}
+# save
+path <- paste0(out, "variance/spearman_correlation_heatmap1.pdf")
+pdf(path, width = 8, height = 8)
+# formula
+form <- ~0 + group + sex + log2.lib + hbb_log2cpm
+# correlation plot
+model.matrix(form, data = meta) %>% 
+  cor(method = "spearman") %>% 
+  ggcorrplot(show.diag = FALSE, type = "lower", lab = TRUE, lab_size = 2)
+dev.off()
+
+# save
+path <- paste0(out, "variance/spearman_correlation_heatmap2.pdf")
+pdf(path, width = 8, height = 8)
+# formula
+form <- ~0 + group2 + log2.lib + hbb_log2cpm
+# correlation plot
+model.matrix(form, data = meta) %>% 
+  cor(method = "spearman") %>% 
+  ggcorrplot(show.diag = FALSE, type = "lower", lab = TRUE, lab_size = 2)
+dev.off()
+
+# save
+path <- paste0(out, "variance/spearman_correlation_heatmap3.pdf")
+pdf(path, width = 8, height = 8)
+# formula
+form <- ~0 + treatment + timepoint_days + age + sex + log2.lib + hbb_log2cpm
+# correlation plot
+model.matrix(form, data = meta) %>% 
+  cor(method = "spearman") %>% 
+  ggcorrplot(show.diag = FALSE, type = "lower", lab = TRUE, lab_size = 2)
+dev.off()
+```
+
+## CCA heatmap
+```{r CCA_heatmap}
+# save
+path <- paste0(out, "variance/canonical_correlation_analysis_heatmap1.pdf")
+pdf(path, width = 8, height = 8)
+# formula
+form <- ~0 + group + sex + log2.lib + hbb_log2cpm
+# CCA
+c <- canCorPairs(form, meta)
+# plot
+corrplot(c,
+         type = "lower",
+         is.corr = FALSE,
+         order = "hclust",
+         col = colorRampPalette(c("blue4", "deepskyblue", "white"))(100),
+         addCoef.col = TRUE,
+         method = "shade",
+         tl.col = "black",
+         tl.cex = 0.8,
+         number.cex = 0.7,
+         diag = TRUE)
+dev.off()
+
+# save
+path <- paste0(out, "variance/canonical_correlation_analysis_heatmap2.pdf")
+pdf(path, width = 8, height = 8)
+# formula
+form <- ~0 + group2 + log2.lib + hbb_log2cpm
+# CCA
+c <- canCorPairs(form, meta)
+# plot
+corrplot(c,
+         type = "lower",
+         is.corr = FALSE,
+         order = "hclust",
+         col = colorRampPalette(c("blue4", "deepskyblue", "white"))(100),
+         addCoef.col = TRUE,
+         method = "shade",
+         tl.col = "black",
+         tl.cex = 0.8,
+         number.cex = 0.7,
+         diag = TRUE)
+dev.off()
+
+# save
+path <- paste0(out, "variance/canonical_correlation_analysis_heatmap3.pdf")
+pdf(path, width = 8, height = 8)
+# formula
+form <- ~0 + treatment + timepoint_days + age + sex + log2.lib + hbb_log2cpm
+# CCA
+c <- canCorPairs(form, meta)
+# plot
+corrplot(c,
+         type = "lower",
+         is.corr = FALSE,
+         order = "hclust",
+         col = colorRampPalette(c("blue4", "deepskyblue", "white"))(100),
+         addCoef.col = TRUE,
+         method = "shade",
+         tl.col = "black",
+         tl.cex = 0.8,
+         number.cex = 0.7,
+         diag = TRUE)
+dev.off()
+```
+
+# Variance partition
+## Variance model
+```{r variance_partition, message=FALSE, eval=FALSE}
+# variables to choose from
+geneExpr <- as.matrix(dge.filtered.norm$counts)
+colnames(meta)
+
+# age is usually a continuous so model it as a fixed effect "age"
+# group is categorical, so model them as random effects "(1|group)"
+form <- ~ (1|treatment) + (1|timepoint_days) + (1|sex) + (1|age)
+
+varPart <- fitExtractVarPartModel(geneExpr, form, meta)
+vp <- sortCols(varPart)
+saveRDS(vp, "../rObjects/var_par.rds")
+```
+
+## Violins
+```{r variance_violins, eval=FALSE}
+# save
+path <- paste0(out, "variance/variance_violins.pdf")
+pdf(path, width = 12, height = 6)
+
+# plot
+plotVarPart(vp)
+```
+
+## Percent bars
+```{r variance_percent_bars}
+# save
+path <- paste0(out, "variance/variance_gene_percent_bars.pdf")
+pdf(paste0(path, ".pdf"), width = 12, height = 6)
+
+# plot
+plotPercentBars(vp[1:10,])
+```
+
+
+```{r session_info}
+sessionInfo()
+```

@@ -1,5 +1,0 @@
-pathway	logP10	genes	direction
-integrin cell surface interactions	-10.07379435	FN1,ICAM1,ITGAM,ITGB2,PECAM1,VWF,LCN2,TGFB1,TYROBP,FCGR3A,TREM2,CSF3R,LCP1,BIN2,FERMT1,CD33,ATP6V1G2,FYB1,PODXL,UNC93B1	up
-immunoregulatory interactions between a Lymphoid and a non-Lymphoid cell	-8.918691143	CD33,FCGR3A,ICAM1,ITGB2,TYROBP,TREM2,ITGAM,LCP1,TGFB1,VWF,FN1,LCN2,PECAM1,PODXL,FERMT1,C1QC,CSF3R,FYB1,UNC93B1,VIM,APCDD1	up
-regulation of neuron apoptotic process	-2.697672649	LCN2,SET,SNCB,TREM2	up
-hallmark inflammatory response	-2.111192461	CSF3R,ADGRE1,ICAM1	up
